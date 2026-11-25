@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>КАРТОШКА-ЛЕГЕНДА v19.0</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;user-select:none;-webkit-tap-highlight-color:transparent}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:radial-gradient(circle at 50% 30%,#1a1a2e,#0f0f1a);color:#eee;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+  #counter{font-size:clamp(2rem,7vw,4.5rem);font-weight:800;color:#ffd23f;text-shadow:0 0 20px rgba(255,210,63,.6);font-variant-numeric:tabular-nums;z-index:5}
+  #cps{font-size:.92rem;color:#8a8aa3;margin-bottom:3px;z-index:5;text-align:center;padding:0 12px}
+  #skinBonusLine{font-size:.82rem;color:#4ade80;margin-bottom:6px;z-index:5;font-weight:600;text-align:center;padding:0 12px}
+  #currencyLine{font-size:.9rem;margin-bottom:12px;display:flex;align-items:center;gap:14px;justify-content:center;z-index:5;flex-wrap:wrap}
+  #souls{color:#a78bfa;display:flex;align-items:center;gap:5px}
+  #cores{color:#fbbf24;display:flex;align-items:center;gap:5px}
+  #currencyLine svg{width:16px;height:16px}
+  #potatoStage{position:relative;width:clamp(185px,40vw,330px);height:clamp(185px,40vw,330px);display:flex;align-items:center;justify-content:center}
+  #auraCanvas{position:absolute;inset:-140px;width:calc(100% + 280px);height:calc(100% + 280px);pointer-events:none;z-index:1}
+  #potatoWrap{width:100%;height:100%;cursor:pointer;position:relative;z-index:2;transition:transform .06s ease;filter:drop-shadow(0 0 24px var(--glow,rgba(255,210,63,.25)))}
+  #potatoWrap:active{transform:scale(.93)}
+  #potatoWrap.pop{animation:pop .15s ease}
+  @keyframes pop{50%{transform:scale(1.15)}}
+  #potatoBody{transform-origin:100px 105px;animation:breathe 3s ease-in-out infinite}
+  @keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}
+  @keyframes rainbowHue{0%{filter:hue-rotate(0deg) drop-shadow(0 0 22px rgba(167,139,250,.65))}100%{filter:hue-rotate(360deg) drop-shadow(0 0 22px rgba(167,139,250,.65))}}
+  .eyelid{transform-origin:center;transform-box:fill-box;transform:scaleY(0);transition:transform .06s ease}
+  .eyelid.blink{transform:scaleY(1)}
+
+  /* ==== ТОПБАР: прокручиваемый, чтобы кнопки не перекрывались панелью ==== */
+  .topbar{position:fixed;left:0;right:0;top:env(safe-area-inset-top);z-index:30;display:flex;gap:8px;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;padding:10px 12px;background:linear-gradient(180deg,rgba(15,15,26,.95),rgba(15,15,26,.75));backdrop-filter:blur(6px);-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .topbar::-webkit-scrollbar{display:none}
+  .btn{display:flex;align-items:center;gap:6px;background:#ffd23f;color:#1a1a2e;border:none;border-radius:10px;padding:9px 13px;font-weight:700;cursor:pointer;font-size:.82rem;transition:transform .15s,opacity .2s;white-space:nowrap;flex:0 0 auto}
+  .btn:hover{transform:scale(1.05)}.btn.alt{background:#a78bfa;color:#fff}.btn.soul{background:#8b5cf6;color:#fff}.btn.skin{background:#4ade80;color:#0f1a0f}.btn.lore{background:#f472b6;color:#fff}.btn.music{background:#38bdf8;color:#082f49}.btn.music.off{background:#27273a;color:#9ca3af}
+
+  /* ==== ПАНЕЛИ: крестик закрытия ==== */
+  .panel{position:fixed;right:0;top:0;bottom:0;width:min(430px,94vw);background:rgba(20,20,35,.98);border-left:1px solid #2a2a44;padding:16px;overflow-y:auto;z-index:40;transform:translateX(100%);transition:transform .25s ease;padding-top:calc(16px + env(safe-area-inset-top));padding-bottom:calc(16px + env(safe-area-inset-bottom))}
+  .panel.open{transform:translateX(0)}
+  .panelClose{position:sticky;top:0;float:right;width:36px;height:36px;border-radius:10px;background:#2a2a44;color:#fff;border:none;font-size:1.2rem;font-weight:800;cursor:pointer;z-index:5;display:flex;align-items:center;justify-content:center;margin-left:8px}
+  .panelClose:active{transform:scale(.9)}
+  .panel h2{font-size:1.05rem;margin-bottom:14px;color:#ffd23f;padding-right:44px}
+  #lorePanel{width:min(500px,96vw);border-left:2px solid #f472b6}#lorePanel h2{color:#f472b6}
+  .loreText{font-size:.95rem;color:#d1d5db;line-height:1.6}.loreText b{color:#fbbf24}
+
+  .cardRow{display:flex;align-items:center;gap:12px;background:#1d1d30;border:1px solid #2a2a44;border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer;transition:.15s}
+  .cardRow:hover:not(.locked):not(.maxed){background:#26263f;border-color:#ffd23f}.cardRow.locked{opacity:.45;cursor:not-allowed}.cardRow.maxed{border-color:#4ade80;background:#1a2a1a;cursor:default}
+  .cardRow .icon{flex:0 0 44px;width:44px;height:44px;background:#141423;border-radius:10px;display:flex;align-items:center;justify-content:center}.cardRow .icon svg{width:26px;height:26px}
+  .cardRow .body{flex:1;min-width:0}.cardRow .name{font-weight:600;font-size:.9rem;display:flex;justify-content:space-between;gap:6px}.cardRow .subVal{font-size:.78rem;color:#4ade80;font-weight:700}.cardRow .desc{font-size:.75rem;color:#8a8aa3;margin-top:2px}.cardRow .price{font-size:.8rem;color:#ffd23f;margin-top:4px;display:flex;align-items:center;gap:4px}.cardRow .price svg{width:13px;height:13px}
+
+  .skinFilterRow{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .filterBtn{background:#1d1d30;color:#9ca3af;border:1px solid #2e2e4d;border-radius:8px;padding:4px 9px;font-size:.7rem;font-weight:700;cursor:pointer}.filterBtn.active{background:#ffd23f;color:#1a1a2e;border-color:#ffd23f}
+  .skinGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px}
+  .skinCard{background:#1d1d30;border:2px solid #2a2a44;border-radius:12px;padding:10px;text-align:center;cursor:pointer;transition:.2s;position:relative;overflow:hidden}
+  .skinCard:not(.owned){opacity:.45;filter:grayscale(.75)}.skinCard.equipped{border-color:#4ade80;box-shadow:0 0 16px rgba(74,222,128,.4)}.skinCard:hover{border-color:#ffd23f;transform:translateY(-2px)}
+  .skinCard .preview{width:70px;height:70px;margin:0 auto 6px;position:relative}.skinCard .preview svg{width:100%;height:100%;position:relative;z-index:2}
+  .skinCard .miniAura{position:absolute;inset:-10px;border-radius:50%;z-index:1;opacity:.8;filter:blur(4px)}
+  .skinCard .name{font-size:.75rem;font-weight:600}.skinCard .rarity{font-size:.65rem;margin-top:2px;font-weight:700}
+  .skinCard .equippedBadge{position:absolute;top:6px;right:6px;background:#4ade80;color:#0f1a0f;font-size:.6rem;font-weight:800;padding:2px 6px;border-radius:6px;z-index:3}
+  .skinCard .bonusTag{font-size:.62rem;color:#4ade80;font-weight:700;margin-top:3px}.skinCard .metaLabel{font-size:.58rem;color:#8a8aa3;margin-top:2px;font-style:italic}
+
+  .r-common{color:#9ca3af}.r-uncommon{color:#4ade80}.r-rare{color:#60a5fa}.r-epic{color:#a78bfa}.r-legendary{color:#fbbf24}.r-mythic{color:#f472b6}
+  .skinCard.r-common{border-color:#9ca3af}.skinCard.r-uncommon{border-color:#4ade80}.skinCard.r-rare{border-color:#60a5fa}.skinCard.r-epic{border-color:#a78bfa}.skinCard.r-legendary{border-color:#fbbf24}.skinCard.r-mythic{border-color:#f472b6}
+
+  .overlay{position:fixed;inset:0;background:rgba(10,10,20,.95);z-index:70;display:none;align-items:center;justify-content:center;flex-direction:column;padding:20px;text-align:center}
+  .overlay.show{display:flex}
+  #previewStage{position:relative;width:min(320px,78vw);height:min(320px,78vw);display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+  #previewAuraCanvas{position:absolute;inset:-140px;width:calc(100% + 280px);height:calc(100% + 280px);pointer-events:none;z-index:1}
+  #previewPotatoBox{width:100%;height:100%;position:relative;z-index:2;display:flex;align-items:center;justify-content:center}
+  #previewName{font-size:1.6rem;font-weight:800;margin-bottom:4px}#previewRarity{font-size:.95rem;font-weight:700;margin-bottom:4px}#previewBonusLabel{font-size:.92rem;color:#4ade80;font-weight:700;margin-bottom:4px}#previewAuraLabel{font-size:.85rem;color:#8a8aa3;font-style:italic;margin-bottom:18px}
+
+  #casesPanel{width:min(450px,96vw)}
+  .caseSelector{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px}
+  .caseTab{background:#1d1d30;border:2px solid #2a2a44;border-radius:10px;padding:8px 10px;text-align:left;cursor:pointer}.caseTab.active{border-color:#ffd23f;background:#262642}
+  .caseTab .ctName{font-size:.82rem;font-weight:700;color:#fff}.caseTab .ctCost{font-size:.72rem;color:#a78bfa;margin-top:2px}
+  .caseVisual{width:100%;height:130px;margin-bottom:14px;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,rgba(167,139,250,.18),transparent 70%);border-radius:16px;border:1px solid #2a2a44}
+  .openCaseBtn{width:100%;padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;font-weight:800;font-size:1rem;cursor:pointer;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:8px}
+  .openCaseBtn:disabled{opacity:.4;cursor:not-allowed}
+  .caseInfo{background:#1d1d30;border:1px solid #2a2a44;border-radius:12px;padding:12px;margin-bottom:12px;font-size:.8rem;color:#9ca3af;line-height:1.45}.caseInfo b{color:#eee}
+  .casePoolList{background:#161626;border:1px solid #25253d;border-radius:12px;padding:10px 12px;font-size:.75rem;color:#8a8aa3}.casePoolList .poolTitle{color:#ffd23f;font-weight:700;margin-bottom:6px}.casePoolChips{display:flex;flex-wrap:wrap;gap:6px}.poolChip{background:#1f1f36;border:1px solid #2e2e4d;border-radius:8px;padding:3px 8px;font-size:.7rem}
+
+  #rouletteOverlay{z-index:80}
+  .rouletteWindow{width:min(640px,94vw);height:140px;overflow:hidden;position:relative;background:#141423;border-radius:16px;border:2px solid #2a2a44;mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+  .rouletteCenter{position:absolute;left:50%;top:0;bottom:0;width:3px;background:linear-gradient(180deg,transparent,#ffd23f,transparent);transform:translateX(-50%);z-index:5}
+  .rouletteTrack{display:flex;align-items:center;height:100%;transition:transform 4s cubic-bezier(.15,.9,.25,1)}
+  .rouletteItem{flex:0 0 100px;height:112px;margin:0 4px;background:#1d1d30;border:2px solid #2a2a44;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px}
+  .rouletteItem .name{font-size:.62rem;font-weight:600;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:92px}.rouletteItem .rarity{font-size:.55rem;font-weight:700;margin-top:2px}
+  #rouletteResult{text-align:center;margin-top:20px;opacity:0;transition:opacity .4s;pointer-events:none}#rouletteResult.show{opacity:1;pointer-events:auto}
+  #rouletteResult .bigPreview{width:120px;height:120px;margin:0 auto 10px;position:relative;display:flex;align-items:center;justify-content:center}
+  #rouletteResult .bigAura{position:absolute;inset:-26px;border-radius:50%;opacity:.9;filter:blur(6px)}
+  #rouletteResult .rname{font-size:1.3rem;font-weight:800}#rouletteResult .rrarity{font-size:.88rem;font-weight:700;margin-bottom:10px}
+  .newBadge{background:#4ade80;color:#0f1a0f;font-weight:800;font-size:.72rem;padding:3px 10px;border-radius:6px;display:inline-block;margin-bottom:8px}.dupNote{color:#fbbf24;font-size:.8rem;margin-bottom:8px}
+
+  #cheatOverlay{z-index:90}#cheatOverlay h2{color:#f472b6;margin-bottom:16px}#cheatOverlay input{background:#1d1d30;border:1px solid #2a2a44;color:#fff;font-size:1.1rem;padding:10px 14px;border-radius:8px;width:200px;text-align:center;margin-bottom:14px}
+  #prestigeOverlay{z-index:50}#prestigeOverlay h2{color:#a78bfa;font-size:1.5rem;margin-bottom:10px}#prestigeOverlay p{color:#8a8aa3;margin-bottom:6px;max-width:420px;font-size:.9rem}#prestigeOverlay .big{color:#ffd23f;font-size:2.1rem;font-weight:800;margin:10px 0;display:flex;align-items:center;justify-content:center;gap:8px}
+  .float{position:fixed;pointer-events:none;font-weight:800;color:#ffd23f;font-size:1.35rem;animation:floatUp .8s ease-out forwards;z-index:46}
+  @keyframes floatUp{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-80px) scale(1.35)}}
+  #reset,#devBtn{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom));background:transparent;color:#5a5a7a;border:1px solid #2a2a44;border-radius:8px;padding:6px 10px;font-size:.75rem;cursor:pointer;z-index:10}
+  #reset{left:16px}#devBtn{left:70px}#devBtn:hover{color:#f472b6;border-color:#f472b6}
+  #fxCanvas{position:fixed;inset:0;pointer-events:none;z-index:100}
+
+  /* Дейлики / достижения */
+  .dailyBox{background:linear-gradient(135deg,#1d1d30,#26263f);border:1px solid #2a2a44;border-radius:14px;padding:14px;margin-bottom:12px}
+  .dailyBox .dtTitle{font-weight:800;color:#ffd23f;font-size:.95rem;margin-bottom:6px}
+  .dailyBox .dtDesc{font-size:.82rem;color:#d1d5db;margin-bottom:8px}
+  .progressBar{height:10px;background:#141423;border-radius:99px;overflow:hidden;margin-bottom:8px}
+  .progressBar > div{height:100%;background:linear-gradient(90deg,#4ade80,#22c55e);border-radius:99px;transition:width .3s}
+  .dailyBox .dtReward{font-size:.78rem;color:#a78bfa;font-weight:700;margin-bottom:8px}
+  .claimBtn{width:100%;padding:10px;border:none;border-radius:10px;background:linear-gradient(135deg,#4ade80,#22c55e);color:#0f1a0f;font-weight:800;cursor:pointer}
+  .claimBtn:disabled{opacity:.4;cursor:not-allowed}
+  .streakRow{display:flex;gap:6px;justify-content:space-between;margin-top:10px}
+  .streakDay{flex:1;aspect-ratio:1;border-radius:8px;background:#141423;border:1px solid #2a2a44;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;color:#5a5a7a}
+  .streakDay.done{background:#1a2a1a;border-color:#4ade80;color:#4ade80}
+  .streakDay.today{border-color:#ffd23f;color:#ffd23f;box-shadow:0 0 10px rgba(255,210,63,.4)}
+  .achRow{display:flex;align-items:center;gap:10px;background:#1d1d30;border:1px solid #2a2a44;border-radius:10px;padding:10px;margin-bottom:6px}
+  .achRow.done{border-color:#4ade80;background:#1a2a1a}
+  .achRow .achIcon{flex:0 0 34px;width:34px;height:34px;border-radius:8px;background:#141423;display:flex;align-items:center;justify-content:center;font-size:1rem}
+  .achRow.done .achIcon{background:#4ade80;color:#0f1a0f}
+  .achRow .achBody{flex:1;min-width:0}
+  .achRow .achName{font-size:.85rem;font-weight:700}
+  .achRow .achDesc{font-size:.72rem;color:#8a8aa3}
+  .achRow .achBonus{font-size:.7rem;color:#4ade80;font-weight:700}
+  .collectionBar{background:#1d1d30;border:1px solid #2a2a44;border-radius:12px;padding:12px;margin-bottom:12px}
+  .collectionBar .cbTitle{font-size:.85rem;font-weight:700;color:#4ade80;margin-bottom:6px}
+  .collectionBar .cbNext{font-size:.75rem;color:#8a8aa3;margin-top:4px}
+
+  #offlineOverlay{z-index:85}
+  #offlineOverlay h2{color:#4ade80;margin-bottom:10px}
+  #offlineOverlay .offGain{font-size:2.2rem;font-weight:800;color:#ffd23f;margin:10px 0;display:flex;align-items:center;justify-content:center;gap:8px}
+  #offlineOverlay p{color:#8a8aa3;font-size:.9rem;margin-bottom:16px;max-width:380px}
+  #loadingOverlay{z-index:200;background:#0f0f1a}
+  #loadingOverlay .spin{width:44px;height:44px;border:4px solid #2a2a44;border-top-color:#ffd23f;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:14px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<canvas id="fxCanvas"></canvas>
+
+<div class="overlay show" id="loadingOverlay"><div class="spin"></div><div style="color:#8a8aa3;font-size:.9rem">Загрузка картошки…</div></div>
+
+<div id="offlineOverlay" class="overlay">
+  <h2>С возвращением!</h2>
+  <p id="offlineText">Пока тебя не было, картошка работала.</p>
+  <div class="offGain" id="offlineGain"></div>
+  <button class="btn skin" id="claimOffline">Забрать</button>
+</div>
+
+<div id="counter">0</div>
+<div id="cps">0 в секунду · клик: 1</div>
+<div id="skinBonusLine">Скин: бонуса нет</div>
+<div id="currencyLine">
+  <span id="souls"></span>
+  <span id="cores"></span>
+</div>
+
+<div id="potatoStage">
+  <canvas id="auraCanvas"></canvas>
+  <svg id="potatoWrap" viewBox="0 0 200 200">
+    <defs>
+      <radialGradient id="potatoGrad" cx="38%" cy="34%" r="72%">
+        <stop id="bodyStop0" offset="0%" stop-color="#f5d76e"/><stop id="bodyStop1" offset="60%" stop-color="#d4a03c"/><stop id="bodyStop2" offset="100%" stop-color="#a67c2e"/>
+      </radialGradient>
+      <clipPath id="potatoClip"><path d="M 96 16 C 128 14, 162 32, 173 66 C 182 94, 176 125, 165 152 C 154 178, 125 190, 96 189 C 66 188, 39 175, 29 147 C 19 119, 21 86, 36 58 C 49 32, 68 18, 96 16 Z"/></clipPath>
+      <clipPath id="eyeLClip"><circle cx="78" cy="88" r="11"/></clipPath>
+      <clipPath id="eyeRClip"><circle cx="122" cy="88" r="11"/></clipPath>
+    </defs>
+    <g id="potatoBody">
+      <path id="potatoEllipse" d="M 96 16 C 128 14, 162 32, 173 66 C 182 94, 176 125, 165 152 C 154 178, 125 190, 96 189 C 66 188, 39 175, 29 147 C 19 119, 21 86, 36 58 C 49 32, 68 18, 96 16 Z" fill="url(#potatoGrad)" stroke="#8a6420" stroke-width="3.2"/>
+      <g id="potatoTextureLayer" clip-path="url(#potatoClip)" opacity=".35" pointer-events="none"></g>
+      <ellipse class="spot" cx="70" cy="68" rx="11" ry="6.5" fill="#b8862e" opacity=".5"/><ellipse class="spot" cx="136" cy="96" rx="13" ry="7.5" fill="#b8862e" opacity=".45"/><ellipse class="spot" cx="84" cy="152" rx="10" ry="5.5" fill="#b8862e" opacity=".5"/><ellipse class="spot" cx="140" cy="150" rx="7.5" ry="4.5" fill="#b8862e" opacity=".4"/><ellipse class="spot" cx="52" cy="122" rx="9" ry="5" fill="#b8862e" opacity=".45"/>
+      <ellipse class="blush" cx="62" cy="108" rx="10" ry="6" fill="#e88" opacity=".35"/><ellipse class="blush" cx="138" cy="108" rx="10" ry="6" fill="#e88" opacity=".35"/>
+      <path class="brow" id="browL" d="M 66 74 Q 78 70 90 74" stroke="#5a3a10" stroke-width="3" fill="none" stroke-linecap="round"/><path class="brow" id="browR" d="M 110 74 Q 122 70 134 74" stroke="#5a3a10" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <circle cx="78" cy="88" r="11" fill="#fff"/><circle cx="122" cy="88" r="11" fill="#fff"/>
+      <g clip-path="url(#eyeLClip)"><circle class="pupil" id="pupilL" cx="78" cy="88" r="6" fill="#3a2a1a"/><circle class="pupil" id="pupilLHi" cx="80" cy="86" r="2" fill="#fff"/></g>
+      <g clip-path="url(#eyeRClip)"><circle class="pupil" id="pupilR" cx="122" cy="88" r="6" fill="#3a2a1a"/><circle class="pupil" id="pupilRHi" cx="124" cy="86" r="2" fill="#fff"/></g>
+      <g class="eyelid" id="eyelidL"><circle cx="78" cy="88" r="11" fill="url(#potatoGrad)"/><path d="M 67 88 Q 78 82 89 88" stroke="#8a6420" stroke-width="2" fill="none"/></g>
+      <g class="eyelid" id="eyelidR"><circle cx="122" cy="88" r="11" fill="url(#potatoGrad)"/><path d="M 111 88 Q 122 82 133 88" stroke="#8a6420" stroke-width="2" fill="none"/></g>
+      <path id="mouth" d="M 78 120 Q 100 138 122 120" stroke="#5a3a10" stroke-width="4" fill="none" stroke-linecap="round"/>
+    </g>
+  </svg>
+</div>
+
+<div id="dialogBox"></div>
+
+<div class="topbar">
+  <button class="btn" data-panel="shop">Магаз</button>
+  <button class="btn alt" data-panel="treePanel">Навыки</button>
+  <button class="btn soul" id="togglePrestige">Перерождение</button>
+  <button class="btn skin" data-panel="skinsPanel">Скины</button>
+  <button class="btn soul" style="background:#f472b6" data-panel="casesPanel">Кейсы</button>
+  <button class="btn lore" data-panel="lorePanel">История</button>
+  <button class="btn" style="background:#fbbf24;color:#1a1a2e" data-panel="questsPanel">Задания</button>
+  <button class="btn" style="background:#60a5fa;color:#fff" data-panel="achPanel">Достижения</button>
+  <button class="btn music" id="toggleMusic">Музыка: ВКЛ</button>
+</div>
+
+<div class="panel" id="shop"><button class="panelClose" data-close="shop">✕</button><h2>Апгрейды</h2><div id="items"></div></div>
+<div class="panel" id="treePanel"><button class="panelClose" data-close="treePanel">✕</button><h2>Дерево навыков</h2><div id="skills"></div></div>
+<div class="panel" id="skinsPanel">
+  <button class="panelClose" data-close="skinsPanel">✕</button>
+  <h2>Скины (<span id="skinsCount">0/0</span>)</h2>
+  <div class="collectionBar" id="collectionBar"></div>
+  <div class="skinFilterRow" id="skinFilters">
+    <button type="button" class="filterBtn active" data-cat="all">Все</button>
+    <button type="button" class="filterBtn" data-cat="pixel">Пиксельные</button>
+    <button type="button" class="filterBtn" data-cat="elemental">Стихийные</button>
+    <button type="button" class="filterBtn" data-cat="planetary">Планетарные</button>
+    <button type="button" class="filterBtn" data-cat="classic">Классика/Магия</button>
+  </div>
+  <div class="skinGrid" id="skinGrid"></div>
+</div>
+<div class="panel" id="casesPanel">
+  <button class="panelClose" data-close="casesPanel">✕</button>
+  <h2>Кейсы</h2>
+  <div class="caseSelector" id="caseSelector"></div>
+  <div class="caseVisual">
+    <svg width="96" height="110" viewBox="0 0 110 130">
+      <defs><linearGradient id="caseGrad" x1="0" y1="0" x2="0" y2="1"><stop id="caseStop0" offset="0%" stop-color="#a78bfa"/><stop id="caseStop1" offset="100%" stop-color="#6d28d9"/></linearGradient></defs>
+      <rect x="10" y="40" width="90" height="80" rx="10" fill="url(#caseGrad)" id="caseBodyRect" stroke="#4c1d95" stroke-width="3"/>
+      <rect x="10" y="40" width="90" height="20" rx="10" id="caseLidRect" fill="#7c3aed" stroke="#4c1d95" stroke-width="3"/>
+      <circle cx="55" cy="80" r="15" fill="#ffd23f" stroke="#a67c2e" stroke-width="2"/>
+    </svg>
+  </div>
+  <button class="openCaseBtn" id="openCaseBtn">Открыть кейс</button>
+  <div class="caseInfo" id="caseInfo"></div>
+  <div class="casePoolList"><div class="poolTitle">Скины в этом кейсе:</div><div class="casePoolChips" id="casePoolChips"></div></div>
+</div>
+<div class="panel" id="lorePanel">
+  <button class="panelClose" data-close="lorePanel">✕</button>
+  <h2>История Картошки</h2>
+  <div class="loreText">Давным-давно на забытом сервере появилась <b>Картошка</b>. Люди кликали по ней, строили фермы и заводы, проходили перерождения, открывали кейсы с редкими скинами и сталкивались с нашествиями пришельцев и пиратов. Каждый клик — новая глава её легенды.</div>
+</div>
+<div class="panel" id="questsPanel">
+  <button class="panelClose" data-close="questsPanel">✕</button>
+  <h2>Задания</h2>
+  <div id="questsBody"></div>
+</div>
+<div class="panel" id="achPanel">
+  <button class="panelClose" data-close="achPanel">✕</button>
+  <h2>Достижения (<span id="achCount">0/0</span>)</h2>
+  <div id="achBody"></div>
+</div>
+
+<div class="overlay" id="previewOverlay">
+  <div id="previewStage"><canvas id="previewAuraCanvas"></canvas><div id="previewPotatoBox"></div></div>
+  <div id="previewName"></div><div id="previewRarity"></div><div id="previewBonusLabel"></div><div id="previewAuraLabel"></div>
+  <div style="display:flex;gap:12px"><button class="btn soul" id="previewEquip">Надеть</button><button class="btn" id="previewClose">Закрыть</button></div>
+</div>
+
+<div class="overlay" id="rouletteOverlay">
+  <div class="rouletteWindow"><div class="rouletteCenter"></div><div class="rouletteTrack" id="rouletteTrack"></div></div>
+  <div id="rouletteResult">
+    <div class="bigPreview" id="resultPreview"></div>
+    <div class="rname" id="resultName"></div><div class="rrarity" id="resultRarity"></div>
+    <div id="resultNew" class="newBadge" style="display:none">НОВЫЙ СКИН!</div>
+    <div id="resultDup" class="dupNote" style="display:none">Дубликат — возврат +1 душа</div>
+    <button class="btn" id="closeResult">Забрать</button>
+  </div>
+</div>
+
+<div class="overlay" id="prestigeOverlay">
+  <h2>Перерождение</h2>
+  <p id="prestigeDesc"></p>
+  <div class="big" id="soulsGain"></div>
+  <div id="coresGain" style="display:none;color:#fbbf24;font-size:1.1rem;font-weight:800;margin-bottom:10px"></div>
+  <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;justify-content:center">
+    <button class="btn soul" id="doPrestige">Сбросить → души</button>
+    <button class="btn" id="doPrestige2" style="background:#fbbf24;color:#1a1a2e;display:none">Сбросить → ядра</button>
+    <button class="btn" id="cancelPrestige">Отмена</button>
+  </div>
+</div>
+
+<div class="overlay" id="cheatOverlay">
+  <h2>DEV MENU</h2>
+  <input type="number" id="cheatInput" value="50" />
+  <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+    <button class="btn soul" id="cheatSouls">Дать души</button>
+    <button class="btn" style="background:#fbbf24;color:#1a1a2e" id="cheatCores">Дать ядра</button>
+    <button class="btn" id="cheatPotatoes">Дать картошки</button>
+    <button class="btn skin" id="cheatUnlockAll">Открыть все скины</button>
+    <button class="btn lore" id="cheatEvent">Тест ивента</button>
+    <button class="btn" style="background:#2a2a44;color:#fff" id="cheatClose">Закрыть</button>
+  </div>
+</div>
+
+<button id="reset">сброс</button><button id="devBtn">DEV</button>
+
+<script>
+/* =========================================================
+   КАРТОШКА-ЛЕГЕНДА v19.0
+   Изменения:
+   - CloudStorage (Telegram) + localStorage фолбэк, асинхронная загрузка
+   - Offline progress (кап 8ч, 50% эффективности)
+   - Ядра (престиж 2) — мультипликативные бонусы
+   - Дейлики + стрик 7 дней
+   - Достижения (30 шт) с бонусами
+   - Скины: уникальные эффекты + коллекционные бонусы
+   - Кнопки-крестики в панелях + прокручиваемый топбар
+   ========================================================= */
+
+const TG = window.Telegram?.WebApp;
+if (TG) { try { TG.ready(); TG.expand(); } catch(e){} }
+
+const SAVE_KEY = 'potatoClickerV19';
+const SAVE_KEY_LEGACY = 'potatoClickerV18';
+const MAX_OFFLINE_SEC = 8 * 3600;
+const OFFLINE_EFF = 0.5;
+
+/* ================= STORAGE (Cloud + localStorage) ================= */
+const Storage = {
+  async get(key) {
+    if (TG?.CloudStorage) {
+      const cloud = await new Promise(res => {
+        try { TG.CloudStorage.getItem(key, (err, val) => res(err ? null : val)); }
+        catch(e){ res(null); }
+      });
+      if (cloud) return cloud;
+    }
+    return localStorage.getItem(key);
+  },
+  async set(key, val) {
+    localStorage.setItem(key, val);
+    if (TG?.CloudStorage) {
+      return new Promise(res => {
+        try { TG.CloudStorage.setItem(key, val, () => res()); }
+        catch(e){ res(); }
+      });
+    }
+  },
+  async remove(key) {
+    localStorage.removeItem(key);
+    if (TG?.CloudStorage) {
+      return new Promise(res => {
+        try { TG.CloudStorage.removeItem(key, () => res()); }
+        catch(e){ res(); }
+      });
+    }
+  }
+};
+
+/* ================= ХЕЛПЕРЫ ================= */
+const $ = s => document.querySelector(s);
+const fmt = n => n>=1e12?(n/1e12).toFixed(2)+'T':n>=1e9?(n/1e9).toFixed(2)+'B':n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':Math.floor(n)+'';
+const ICONS = {
+  soul:'<svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><path d="M12 2 C12 2 8 7 8 11 a4 4 0 0 0 8 0 C16 7 12 2 12 2Z"/><path d="M12 15 v7"/></svg>',
+  core:'<svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="#fbbf24"/></svg>',
+  potato:'<svg viewBox="0 0 24 24" fill="none" stroke="#ffd23f" stroke-width="2"><path d="M11 4c4 0 8 3 8 8s-4 9-8 9-8-3-8-9 4-8 8-8z"/></svg>',
+  pirate:'<svg viewBox="0 0 24 24" fill="none" stroke="#fb923c" stroke-width="2"><path d="M3 16h18l-2 4H5l-2-4z"/><path d="M12 4v12l7-5-7-7z"/></svg>',
+  alien:'<svg viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2"><ellipse cx="12" cy="12" rx="9" ry="4"/><path d="M7 10a5 5 0 0 1 10 0"/></svg>'
+};
+const TEX_NAMES = {none:'Гладкая',pixel:'Пиксели',stripes:'Полосы',dots:'Точки',grid:'Сетка',scales:'Чешуя',crater:'Кратеры',circuit:'Схема'};
+const RARITY = {
+  common:{name:'Обычный',color:'#9ca3af'},uncommon:{name:'Необычный',color:'#4ade80'},rare:{name:'Редкий',color:'#60a5fa'},
+  epic:{name:'Эпический',color:'#a78bfa'},legendary:{name:'Легендарный',color:'#fbbf24'},mythic:{name:'Мифический',color:'#f472b6'}
+};
+const AURA_GLOW = {
+  smoke:'rgba(138,138,163,.7)',leaves:'rgba(132,204,22,.7)',snow:'rgba(224,242,254,.8)',goldSparkle:'rgba(251,191,36,.85)',
+  sapphireSparkle:'rgba(59,130,246,.85)',pxSparkle:'rgba(250,204,21,.8)',pxLeaves:'rgba(155,188,15,.8)',pxCyber:'rgba(34,211,238,.75)',
+  storm:'rgba(56,189,248,.85)',flames:'rgba(249,115,22,.85)',solarFlare:'rgba(250,204,21,.9)',crystalsPurple:'rgba(167,139,250,.85)',
+  crystalsRuby:'rgba(244,63,94,.85)',toxic:'rgba(132,204,22,.85)',orbit:'rgba(99,102,241,.75)',diamondFacet:'rgba(125,211,252,.8)',
+  voidRift:'rgba(168,85,247,.85)',blackholeDisk:'rgba(251,191,36,.85)',rainbowSoft:'rgba(167,139,250,.7)'
+};
+
+/* ================= СКИНЫ (без изменений, +эффекты ниже) ================= */
+const SKINS = [
+  ['default','Классика','classic','common','none',['#f5d76e','#d4a03c','#a67c2e'],'#8a6420','#b8862e','#3a2a1a','#5a3a10','#5a3a10','rgba(255,210,63,.35)','none','—',0,0],
+  ['dark','Тёмная','classic','common','dots',['#8a8aa3','#5a5a7a','#2a2a44'],'#1a1a2e','#3a3a5a','#0a0a15','#0a0a15','#0a0a15','rgba(138,138,163,.5)','smoke','Дымная тень',.05,0],
+  ['earth','Земляная','classic','common','dots',['#c89d6c','#8c5828','#4a2c11'],'#2b1808','#6e421b','#2b1808','#2b1808','#2b1808','rgba(140,88,40,.5)','smoke','Пыль грядок',.04,.02],
+  ['green','Зелёная','classic','uncommon','scales',['#a3e635','#65a30d','#365314'],'#1a2e05','#4d7c0f','#1a2e05','#1a2e05','#1a2e05','rgba(163,230,53,.55)','leaves','Листопад',0,.08],
+  ['mint','Мятная','classic','uncommon','dots',['#ccfbf1','#2dd4bf','#0f766e'],'#115e59','#5eead4','#134e4a','#115e59','#115e59','rgba(45,212,191,.6)','snow','Холодный бриз',.03,.06],
+  ['gold','Золотая','classic','rare','stripes',['#fef3c7','#fbbf24','#d97706'],'#92400e','#f59e0b','#78350f','#78350f','#78350f','rgba(251,191,36,.75)','goldSparkle','Золотые искры',.12,.12],
+  ['sapphire','Сапфировая','classic','rare','grid',['#dbeafe','#3b82f6','#1d4ed8'],'#1e3a8a','#93c5fd','#172554','#1e3a8a','#1e3a8a','rgba(59,130,246,.8)','sapphireSparkle','Сапфировые блики',.16,.06],
+  ['purple','Аметист','classic','epic','grid',['#e9d5ff','#a78bfa','#6d28d9'],'#4c1d95','#8b5cf6','#2e1065','#4c1d95','#4c1d95','rgba(167,139,250,.85)','crystalsPurple','Аметистовые грани',.10,.24],
+  ['toxic','Токсик','classic','epic','dots',['#d9f99d','#84cc16','#3f6212'],'#1a2e05','#65a30d','#0a1a02','#1a2e05','#1a2e05','rgba(132,204,22,.9)','toxic','Токсичные пузыри',.26,.08],
+  ['ruby','Рубиновая','classic','epic','scales',['#ffe4e6','#f43f5e','#9f1239'],'#4c0519','#fb7185','#4c0519','#4c0519','#4c0519','rgba(244,63,94,.85)','crystalsRuby','Рубиновые кристаллы',.28,.06],
+  ['diamond','Алмаз','classic','legendary','grid',['#ffffff','#bae6fd','#38bdf8'],'#0284c7','#e0f2fe','#0c4a6e','#0284c7','#0284c7','rgba(125,211,252,.75)','diamondFacet','Алмазные блики',.32,.32],
+  ['void','Пустота','classic','mythic','crater',['#581c87','#2e1065','#090514'],'#a855f7','#7e22ce','#e879f9','#e879f9','#d8b4fe','rgba(168,85,247,.85)','voidRift','Фиолетовый разлом',.25,.65],
+  ['rainbow','Радуга','classic','mythic','stripes',['#f87171','#a78bfa','#60a5fa'],'#4c1d95','#fbbf24','#1a1a2e','#1a1a2e','#1a1a2e','rgba(167,139,250,.7)','rainbowSoft','Лёгкий спектр',.45,.45],
+  ['px_8bit','Пиксель-8бит','pixel','uncommon','pixel',['#fde047','#eab308','#a16207'],'#422006','#ca8a04','#1c1917','#1c1917','#1c1917','rgba(234,179,8,.7)','pxSparkle','Пиксельные искры',.10,0],
+  ['px_gameboy','Ретро-Геймбой','pixel','rare','pixel',['#9bbc0f','#8bac0f','#306230'],'#0f380f','#306230','#0f380f','#0f380f','#0f380f','rgba(155,188,15,.8)','pxLeaves','Пиксельная листва',.04,.18],
+  ['px_cyber','Кибер-Пиксель','pixel','mythic','circuit',['#f0abfc','#06b6d4','#1e1b4b'],'#22d3ee','#e879f9','#22d3ee','#f472b6','#22d3ee','rgba(34,211,238,.75)','pxCyber','Пиксельный неон',.55,.25],
+  ['el_ice','Ледяная','elemental','uncommon','grid',['#e0f2fe','#7dd3fc','#0ea5e9'],'#0369a1','#bae6fd','#0c4a6e','#0369a1','#0369a1','rgba(125,211,252,.65)','snow','Снегопад',.09,.02],
+  ['el_fire','Огненная','elemental','rare','crater',['#fecaca','#f97316','#b91c1c'],'#7f1d1d','#ea580c','#450a0a','#450a0a','#450a0a','rgba(249,115,22,.85)','flames','Пламя',.20,.05],
+  ['el_storm','Грозовая','elemental','epic','stripes',['#cbd5e1','#475569','#1e293b'],'#38bdf8','#94a3b8','#38bdf8','#7dd3fc','#38bdf8','rgba(56,189,248,.9)','storm','Грозовые разряды',.32,.04],
+  ['el_magma','Магмовая','elemental','legendary','crater',['#fb923c','#dc2626','#450a0a'],'#facc15','#f97316','#fef08a','#fde047','#facc15','rgba(239,68,68,.9)','flames','Вулкан магмы',.15,.48],
+  ['pl_mars','Марс','planetary','rare','crater',['#fdba74','#ea580c','#7c2d12'],'#431407','#c2410c','#2a0d04','#431407','#431407','rgba(234,88,12,.8)','smoke','Марсианская пыль',.05,.17],
+  ['pl_saturn','Сатурн','planetary','epic','stripes',['#fde68a','#d97706','#78350f'],'#fef08a','#f59e0b','#451a03','#78350f','#78350f','rgba(251,191,36,.85)','orbit','Кольца и спутники',.08,.26],
+  ['pl_neptune','Нептун','planetary','legendary','stripes',['#93c5fd','#2563eb','#172554'],'#60a5fa','#3b82f6','#e0f2fe','#93c5fd','#60a5fa','rgba(37,99,235,.9)','orbit','Ледяные орбиты',.20,.42],
+  ['pl_galaxy','Галактика','planetary','legendary','dots',['#c7d2fe','#6366f1','#1e1b4b'],'#0f0a2e','#818cf8','#050510','#0f0a2e','#0f0a2e','rgba(99,102,241,.9)','orbit','Орбиты планет',.28,.36],
+  ['pl_solar','Солнечная','planetary','legendary','crater',['#fef9c3','#facc15','#ea580c'],'#7c2d12','#fde047','#431407','#7c2d12','#7c2d12','rgba(250,204,21,.95)','solarFlare','Корональные вспышки',.45,.22],
+  ['pl_blackhole','Чёрная дыра','planetary','mythic','crater',['#1e1b4b','#09090b','#000000'],'#f59e0b','#18181b','#fbbf24','#f59e0b','#fbbf24','rgba(251,191,36,.9)','blackholeDisk','Аккреционный диск',.70,.35]
+].map(a => ({id:a[0],name:a[1],cat:a[2],rarity:a[3],texture:a[4],body:a[5],stroke:a[6],spots:a[7],pupil:a[8],mouth:a[9],brow:a[10],glow:a[11],aura:a[12],auraLabel:a[13],clickBonus:a[14],autoBonus:a[15]}));
+
+/* Уникальные эффекты скинов (стратегические билды) */
+const SKIN_EFFECTS = {
+  dark:        {autoMul:1.25, clickMul:0.90, label:'+25% авто, −10% клик'},
+  gold:        {clickMul:1.15, autoMul:1.15, eventRateMul:1.25, label:'+15% клик/авто, ивенты +25%'},
+  toxic:       {eventDamageMul:2, label:'×2 урон по ивентам'},
+  ruby:        {eventDamageMul:1.3, autoMul:0.90, label:'+30% урон ивентов, −10% авто'},
+  diamond:     {critChance:0.10, critMul:5, clickMul:0.85, label:'10% крит ×5, −15% клик'},
+  void:        {gambleZero:0.10, gambleJackpot:0.05, jackpotMul:10, label:'10% клик=0, 5% клик=×10'},
+  rainbow:     {globalMul:1.10, label:'+10% ко всему'},
+  px_cyber:    {incomePerCase:0.01, incomePerCaseCap:0.50, label:'+1% дохода за кейс (кап +50%)'},
+  el_storm:    {autoPerEvent:0.02, autoPerEventCap:0.20, label:'+2% авто за ивент (кап +20%)'},
+  pl_blackhole:{instakill:0.01, label:'1% мгновенно добить ивент-врага'},
+  pl_solar:    {globalMul:1.08, label:'+8% ко всему'},
+  purple:      {soulsMul:1.10, label:'+10% душ при престиже'},
+  sapphire:    {autoMul:1.10, label:'+10% авто'},
+  el_magma:    {autoMul:1.15, clickMul:0.95, label:'+15% авто, −5% клик'},
+  pl_neptune:  {autoMul:1.20, label:'+20% авто'},
+  pl_galaxy:   {clickMul:1.20, label:'+20% клик'}
+};
+const skinById = id => SKINS.find(s => s.id === id);
+
+/* Коллекционные бонусы */
+const COLLECTION_BONUSES = [
+  {need:5,  autoMul:1.10, label:'5 скинов: ×1.10 авто'},
+  {need:10, clickMul:1.15, label:'10 скинов: ×1.15 клик'},
+  {need:15, soulsMul:1.25, label:'15 скинов: ×1.25 душ'},
+  {need:20, autoMul:1.50, label:'20 скинов: ×1.50 авто'},
+  {need:26, globalMul:2.00, label:'26 скинов: ×2 ко всему'}
+];
+
+/* ================= КЕЙСЫ ================= */
+const CASES = [
+  {id:'starter',name:'Стартовый',cost:5,grad:['#60a5fa','#2563eb'],stroke:'#1e3a8a',lid:'#3b82f6',w:{common:50,uncommon:28,rare:15,epic:6,legendary:1,mythic:0},skins:['default','dark','earth','green','mint','px_8bit','el_ice','gold','sapphire','pl_mars','purple']},
+  {id:'storm',name:'Клубневой шторм',cost:12,grad:['#4ade80','#15803d'],stroke:'#14532d',lid:'#22c55e',w:{common:22,uncommon:30,rare:26,epic:15,legendary:6,mythic:1},skins:['dark','earth','green','mint','px_8bit','px_gameboy','el_ice','el_fire','gold','sapphire','pl_mars','purple','toxic','ruby','el_storm','pl_saturn']},
+  {id:'elements_space',name:'Космос и Стихии',cost:30,grad:['#38bdf8','#4338ca'],stroke:'#1e1b4b',lid:'#0ea5e9',w:{common:0,uncommon:15,rare:25,epic:30,legendary:22,mythic:8},skins:['px_gameboy','el_ice','el_fire','el_storm','el_magma','pl_mars','pl_saturn','pl_neptune','pl_galaxy','pl_solar','pl_blackhole','px_cyber']},
+  {id:'abyss',name:'Бездна и Радуга',cost:45,grad:['#f472b6','#6d28d9'],stroke:'#4c1d95',lid:'#ec4899',w:{common:0,uncommon:10,rare:18,epic:30,legendary:26,mythic:16},skins:['el_fire','el_storm','el_magma','pl_saturn','pl_neptune','pl_galaxy','pl_solar','diamond','void','rainbow','px_cyber','pl_blackhole']}
+];
+const caseById = id => CASES.find(c => c.id === id) || CASES[0];
+
+/* ================= ДЕЙЛИКИ ================= */
+const DAILIES = [
+  {id:'click500', name:'Кликни 500 раз', target:500, reward:{souls:2}, track:'clicksToday'},
+  {id:'click2000', name:'Кликни 2000 раз', target:2000, reward:{souls:5}, track:'clicksToday'},
+  {id:'earn100k', name:'Набей 100K картошек', target:100000, reward:{souls:3}, track:'earnedToday'},
+  {id:'earn1m', name:'Набей 1M картошек', target:1000000, reward:{souls:6}, track:'earnedToday'},
+  {id:'buy10', name:'Купи 10 апгрейдов', target:10, reward:{souls:2}, track:'buysToday'},
+  {id:'open1', name:'Открой 1 кейс', target:1, reward:{souls:3}, track:'casesToday'},
+  {id:'event1', name:'Победи 1 ивент', target:1, reward:{souls:4}, track:'eventsToday'},
+  {id:'prestige1', name:'Сделай 1 престиж', target:1, reward:{souls:8}, track:'prestigesToday'}
+];
+
+/* ================= ДОСТИЖЕНИЯ ================= */
+const ACHIEVEMENTS = [
+  {id:'a_click1',   name:'Первый клик',     desc:'Кликни 1 раз',              check:s=>s.totalClicks>=1,        bonus:{clickMul:1.01}},
+  {id:'a_click100', name:'Сотка',           desc:'Кликни 100 раз',            check:s=>s.totalClicks>=100,      bonus:{clickMul:1.02}},
+  {id:'a_click10k', name:'Клик-машина',     desc:'Кликни 10 000 раз',         check:s=>s.totalClicks>=10000,    bonus:{clickMul:1.05}},
+  {id:'a_1k',       name:'Первая тысяча',   desc:'Набей 1 000 картошек',      check:s=>s.total>=1e3,            bonus:{autoMul:1.02}},
+  {id:'a_1m',       name:'Миллионер',       desc:'Набей 1M картошек',         check:s=>s.total>=1e6,            bonus:{autoMul:1.05}},
+  {id:'a_1b',       name:'Миллиардер',      desc:'Набей 1B картошек',         check:s=>s.total>=1e9,            bonus:{globalMul:1.10}},
+  {id:'a_prestige1',name:'Перерожденец',    desc:'Сделай 1 престиж',          check:s=>s.prestigeCount>=1,      bonus:{soulsMul:1.05}},
+  {id:'a_prestige10',name:'Мастер сброса',  desc:'Сделай 10 престижей',       check:s=>s.prestigeCount>=10,     bonus:{soulsMul:1.10}},
+  {id:'a_core1',    name:'Ядро',            desc:'Получи 1 ядро',             check:s=>s.coresEarned>=1,        bonus:{globalMul:1.05}},
+  {id:'a_core10',   name:'Ядерный',         desc:'Получи 10 ядер',            check:s=>s.coresEarned>=10,       bonus:{globalMul:1.15}},
+  {id:'a_skin5',    name:'Коллекционер',    desc:'Собери 5 скинов',           check:s=>s.ownedSkins.length>=5,  bonus:{autoMul:1.03}},
+  {id:'a_skin10',   name:'Гардероб',        desc:'Собери 10 скинов',          check:s=>s.ownedSkins.length>=10, bonus:{clickMul:1.05}},
+  {id:'a_skin26',   name:'Полный комплект', desc:'Собери все скины',          check:s=>s.ownedSkins.length>=SKINS.length, bonus:{globalMul:1.20}},
+  {id:'a_case1',    name:'Первый кейс',     desc:'Открой 1 кейс',             check:s=>s.casesOpened>=1,        bonus:{soulsMul:1.02}},
+  {id:'a_case50',   name:'Кейс-маньяк',     desc:'Открой 50 кейсов',          check:s=>s.casesOpened>=50,       bonus:{soulsMul:1.10}},
+  {id:'a_event1',   name:'Отбился',         desc:'Победи 1 ивент',            check:s=>s.eventsWon>=1,          bonus:{eventMul:1.05}},
+  {id:'a_event20',  name:'Ветеран',         desc:'Победи 20 ивентов',         check:s=>s.eventsWon>=20,         bonus:{eventMul:1.15}},
+  {id:'a_skill1',   name:'Ученик',          desc:'Купи 1 навык',              check:s=>s.skills.reduce((a,b)=>a+b.lvl,0)>=1, bonus:{soulsMul:1.02}},
+  {id:'a_skill10',  name:'Магистр',         desc:'Купи 10 уровней навыков',   check:s=>s.skills.reduce((a,b)=>a+b.lvl,0)>=10, bonus:{soulsMul:1.08}},
+  {id:'a_daily1',   name:'Дисциплина',      desc:'Выполни 1 дейлик',          check:s=>s.dailiesDone>=1,        bonus:{soulsMul:1.05}},
+  {id:'a_daily10',  name:'Пунктуальный',    desc:'Выполни 10 дейликов',       check:s=>s.dailiesDone>=10,       bonus:{soulsMul:1.15}},
+  {id:'a_streak7',  name:'Неделя',          desc:'Стрик 7 дней',              check:s=>s.bestStreak>=7,         bonus:{globalMul:1.10}},
+  {id:'a_streak30', name:'Месяц',           desc:'Стрик 30 дней',             check:s=>s.bestStreak>=30,        bonus:{globalMul:1.25}},
+  {id:'a_auto100',  name:'Автоматизация',   desc:'100/сек авто',              check:s=>s.bestAuto>=100,         bonus:{autoMul:1.05}},
+  {id:'a_auto1k',   name:'Фабрика',         desc:'1K/сек авто',               check:s=>s.bestAuto>=1000,        bonus:{autoMul:1.10}},
+  {id:'a_auto1m',   name:'Индустрия',       desc:'1M/сек авто',               check:s=>s.bestAuto>=1e6,         bonus:{autoMul:1.20}},
+  {id:'a_click1k',  name:'Молот',           desc:'Клик 1K за раз',            check:s=>s.bestClick>=1000,       bonus:{clickMul:1.10}},
+  {id:'a_click1m',  name:'Экскалибур',      desc:'Клик 1M за раз',            check:s=>s.bestClick>=1e6,        bonus:{clickMul:1.25}},
+  {id:'a_offline1', name:'Возвращение',     desc:'Получи оффлайн-доход',      check:s=>s.offlineCollected>=1,   bonus:{autoMul:1.03}},
+  {id:'a_play1h',   name:'Час игры',        desc:'Проведи 1 час в игре',      check:s=>s.playTimeSec>=3600,     bonus:{globalMul:1.05}},
+  {id:'a_play24h',  name:'Сутки',           desc:'Проведи 24 часа в игре',    check:s=>s.playTimeSec>=86400,    bonus:{globalMul:1.15}}
+];
+
+/* ================= СОСТОЯНИЕ ================= */
+const state = {
+  count:0,total:0,souls:0,soulsSpent:0,cores:0,coresEarned:0,totalSoulsEarned:0,
+  equippedSkin:'default',ownedSkins:['default'],selectedCase:'starter',casesOpened:0,skinFilter:'all',
+  musicEnabled:true,lastSeen:Date.now(),
+  prestigeCount:0,
+  items:[
+    {id:'finger',name:'Палец',desc:'+1 за клик',base:150,type:'click',value:1,owned:0},
+    {id:'hand',name:'Рука',desc:'+5 за клик',base:1200,type:'click',value:5,owned:0},
+    {id:'mouse',name:'Мышь-автоклик',desc:'+1/сек',base:500,type:'auto',value:1,owned:0},
+    {id:'farm',name:'Картофелефарм',desc:'+5/сек',base:3500,type:'auto',value:5,owned:0},
+    {id:'factory',name:'Завод',desc:'+25/сек',base:25000,type:'auto',value:25,owned:0},
+    {id:'ai',name:'ИИ-картошка',desc:'+100/сек',base:250000,type:'auto',value:100,owned:0},
+    {id:'quantum',name:'Квантовая грядка',desc:'+500/сек',base:2000000,type:'auto',value:500,owned:0},
+    {id:'dyson',name:'Сфера Дайсона',desc:'+5000/сек',base:50000000,type:'auto',value:5000,owned:0}
+  ],
+  skills:[
+    {id:'s_click',name:'Сильный клик',desc:'+10% к клику за ур.',max:5,cost:[2,3,5,8,12],lvl:0},
+    {id:'s_auto',name:'Автоматика',desc:'+10% к авто за ур.',max:5,cost:[2,3,5,8,12],lvl:0},
+    {id:'s_start',name:'Стартовый капитал',desc:'+5000 картошек при сбросе',max:3,cost:[3,6,10],lvl:0},
+    {id:'s_cheap',name:'Скидочка',desc:'-5% к цене апгрейдов',max:5,cost:[3,5,8,12,20],lvl:0},
+    {id:'s_soul',name:'Опытная душа',desc:'+15% душ при сбросе',max:5,cost:[5,8,12,20,35],lvl:0}
+  ],
+  /* Дейлики */
+  daily:{date:'',progress:0,done:false,claimed:false},
+  streak:0,bestStreak:0,lastClaimDate:'',dailiesDone:0,
+  /* Достижения */
+  achievements:{},
+  /* Статистика */
+  totalClicks:0,clicksToday:0,earnedToday:0,buysToday:0,casesToday:0,eventsToday:0,prestigesToday:0,
+  eventsWon:0,offlineCollected:0,playTimeSec:0,bestAuto:0,bestClick:0,
+  /* Временные для дейлика */
+  dayKey:'',lastSaveTs:Date.now()
+};
+
+/* ================= ПРОИЗВОДНЫЕ ================= */
+const skLvl = id => state.skills.find(s=>s.id===id).lvl;
+const eqSkin = () => skinById(state.equippedSkin) || SKINS[0];
+const eqEffect = () => SKIN_EFFECTS[state.equippedSkin] || {};
+const ownedCount = () => state.ownedSkins.length;
+
+/* Бонусы от достижений */
+function achBonuses() {
+  const b = {clickMul:1,autoMul:1,soulsMul:1,globalMul:1,eventMul:1};
+  ACHIEVEMENTS.forEach(a => {
+    if (!state.achievements[a.id]) return;
+    if (a.bonus.clickMul) b.clickMul *= a.bonus.clickMul;
+    if (a.bonus.autoMul)  b.autoMul  *= a.bonus.autoMul;
+    if (a.bonus.soulsMul) b.soulsMul *= a.bonus.soulsMul;
+    if (a.bonus.globalMul)b.globalMul*= a.bonus.globalMul;
+    if (a.bonus.eventMul) b.eventMul *= a.bonus.eventMul;
+  });
+  return b;
+}
+/* Бонусы от коллекции */
+function collectionBonuses() {
+  const b = {clickMul:1,autoMul:1,soulsMul:1,globalMul:1};
+  const n = ownedCount();
+  COLLECTION_BONUSES.forEach(c => {
+    if (n < c.need) return;
+    if (c.clickMul) b.clickMul *= c.clickMul;
+    if (c.autoMul)  b.autoMul  *= c.autoMul;
+    if (c.soulsMul) b.soulsMul *= c.soulsMul;
+    if (c.globalMul)b.globalMul*= c.globalMul;
+  });
+  return b;
+}
+/* Ядерные бонусы */
+function coreBonuses() {
+  const c = state.cores;
+  return {
+    clickMul: Math.pow(1.5, c),
+    autoMul:  Math.pow(1.5, c),
+    priceMul: Math.pow(0.9, c)
+  };
+}
+
+function clickPower() {
+  const e = eqEffect();
+  const ab = achBonuses(), cb = collectionBonuses(), cr = coreBonuses();
+  let base = 1 + state.items.filter(i=>i.type==='click').reduce((a,b)=>a+b.value*b.owned,0);
+  base *= (1 + skLvl('s_click')*.1);
+  base *= (1 + (eqSkin().clickBonus||0));
+  base *= (e.clickMul || 1);
+  base *= ab.clickMul * cb.clickMul * cr.clickMul;
+  base *= (e.globalMul || 1) * ab.globalMul * cb.globalMul;
+  return base;
+}
+function autoPower() {
+  const e = eqEffect();
+  const ab = achBonuses(), cb = collectionBonuses(), cr = coreBonuses();
+  let base = state.items.filter(i=>i.type==='auto').reduce((a,b)=>a+b.value*b.owned,0);
+  base *= (1 + skLvl('s_auto')*.1);
+  base *= (1 + (eqSkin().autoBonus||0));
+  base *= (e.autoMul || 1);
+  if (e.incomePerCase) base *= (1 + Math.min(e.incomePerCaseCap, state.casesOpened * e.incomePerCase));
+  if (e.autoPerEvent)  base *= (1 + Math.min(e.autoPerEventCap, state.eventsWon * e.autoPerEvent));
+  base *= ab.autoMul * cb.autoMul * cr.autoMul;
+  base *= (e.globalMul || 1) * ab.globalMul * cb.globalMul;
+  return base;
+}
+function itemPrice(it) {
+  const cr = coreBonuses();
+  return Math.floor(it.base * Math.pow(1.15, it.owned) * (1 - skLvl('s_cheap')*.05) * cr.priceMul);
+}
+const soulsAvail = () => state.souls - state.soulsSpent;
+function soulsGain() {
+  const e = eqEffect(), ab = achBonuses(), cb = collectionBonuses();
+  let g = Math.floor(Math.sqrt(state.total / 1e6) * (1 + skLvl('s_soul')*.15));
+  g *= (e.soulsMul || 1) * ab.soulsMul * cb.soulsMul;
+  return Math.floor(g);
+}
+function coresGain() {
+  return Math.floor(Math.sqrt(Math.max(0,state.totalSoulsEarned) / 100));
+}
+
+/* ================= АУРЫ ================= */
+function makeAura(canvas){
+  const ctx = canvas.getContext('2d');
+  return {
+    type:'none', ps:[], t:0,
+    resize(){ const r = canvas.getBoundingClientRect(); if (!r.width) return; canvas.width = r.width*1.5; canvas.height = r.height*1.5; },
+    dims(){ const r = canvas.getBoundingClientRect(); return {cx:(r.width||300)/2,cy:(r.height||300)/2}; },
+    count(){ return this.type==='none' ? 0 : (['rainbowSoft','diamondFacet','pxCyber'].includes(this.type) ? 40 : 60); },
+    setType(tp){ this.resize(); this.type=tp; this.ps=[]; for(let i=0;i<this.count();i++) this.spawn(true); },
+    spawn(init){
+      const {cx,cy}=this.dims(), t=this.type, life=init?(.3+Math.random()*.7):1;
+      const a=Math.random()*Math.PI*2, rad=80+Math.random()*95;
+      let p={x:cx+Math.cos(a)*rad,y:cy+Math.sin(a)*rad,vx:(Math.random()-.5)*1.2,vy:-.6-Math.random()*.9,size:6+Math.random()*8,rot:Math.random()*6,life,decay:.005,color:'#ffd23f'};
+      if (t==='leaves'||t==='pxLeaves'||t==='snow'){ p.x=cx+(Math.random()-.5)*320; p.y=cy-160+Math.random()*110; p.vy=.8+Math.random()*1.2; p.color=t==='snow'?'#e0f2fe':(t==='pxLeaves'?'#9bbc0f':'#84cc16'); }
+      else if (t==='flames'||t==='solarFlare'){ p.x=cx+(Math.random()-.5)*190; p.y=cy+70; p.vy=-2-Math.random()*1.2; p.color='#fb923c'; p.decay=.009; }
+      else if (t==='sapphireSparkle'||t==='storm'){ p.color='#60a5fa'; }
+      else if (t==='crystalsPurple'||t==='voidRift'){ p.color='#c084fc'; }
+      else if (t==='crystalsRuby'){ p.color='#f43f5e'; }
+      else if (t==='toxic'){ p.color='#a3e635'; }
+      else if (t==='pxSparkle'||t==='blackholeDisk'){ p.color='#fbbf24'; }
+      else if (t==='pxCyber'||t==='diamondFacet'){ p.color='#22d3ee'; }
+      else if (t==='orbit'){ p.angle=a; p.radius=92+Math.random()*80; p.speed=.018+Math.random()*.015; p.color='#a5b4fc'; p.decay=0; }
+      else if (t==='rainbowSoft'){ p.hue=Math.floor(Math.random()*360); }
+      this.ps.push(p);
+    },
+    update(dt){
+      this.t += dt; while (this.ps.length < this.count()) this.spawn(false);
+      if (!canvas.width) return;
+      ctx.clearRect(0,0,canvas.width,canvas.height); ctx.save(); ctx.scale(1.5,1.5);
+      const {cx,cy}=this.dims();
+      if (this.type==='blackholeDisk'){ ctx.strokeStyle='rgba(251,191,36,.4)'; ctx.lineWidth=4; ctx.beginPath(); ctx.ellipse(cx,cy,120,34,-.28,0,Math.PI*2); ctx.stroke(); }
+      for (let i=this.ps.length-1;i>=0;i--){
+        const p=this.ps[i];
+        if (p.decay){ p.life-=p.decay*dt; if (p.life<=0){ this.ps.splice(i,1); this.spawn(false); continue; } }
+        if (p.angle!==undefined){ p.angle+=p.speed*dt; p.x=cx+Math.cos(p.angle)*p.radius; p.y=cy+Math.sin(p.angle)*p.radius*.38; }
+        else { p.x+=p.vx*dt; p.y+=p.vy*dt; p.rot+=.04*dt; }
+        ctx.globalAlpha=p.life*.85;
+        ctx.fillStyle = p.hue!==undefined ? `hsl(${p.hue},85%,68%)` : p.color;
+        if (this.type.startsWith('px')) ctx.fillRect(Math.round(p.x),Math.round(p.y),p.size,p.size);
+        else { ctx.beginPath(); ctx.arc(p.x,p.y,p.size*.6,0,Math.PI*2); ctx.fill(); }
+      }
+      ctx.restore();
+    }
+  };
+}
+const mainAura = makeAura($('#auraCanvas')), previewAura = makeAura($('#previewAuraCanvas'));
+requestAnimationFrame(function loop(ts){
+  const dt = Math.min(2.5, ((ts - (loop.last||ts)) / 16) || 1); loop.last = ts;
+  mainAura.update(dt);
+  if ($('#previewOverlay').classList.contains('show')) previewAura.update(dt);
+  requestAnimationFrame(loop);
+});
+
+/* ================= ЗВУК ================= */
+let actx=null, mStep=0;
+const BASS=[110,110,87.31,87.31,130.81,130.81,98,98], ARP=[220,261.63,329.63,392,440,392,329.63,261.63];
+function ensureAudio(){ if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)(); if(actx.state==='suspended') actx.resume(); }
+function beep(f,d,tp='sine',v=.06){ try{ ensureAudio(); const o=actx.createOscillator(),g=actx.createGain(); o.type=tp; o.frequency.value=f; g.gain.value=v; g.gain.exponentialRampToValueAtTime(.001,actx.currentTime+d); o.connect(g); g.connect(actx.destination); o.start(); o.stop(actx.currentTime+d); }catch(e){} }
+
+/* ================= ИВЕНТЫ (пока старые, волновые в v19.1) ================= */
+let activeEvent=null, raiders=[];
+function spawnRaider(kind){
+  const el = document.createElement('div');
+  el.className = 'raider ' + (kind==='aliens'?'alien':'');
+  const hp = Math.max(2, Math.round(2 + clickPower()*.25));
+  const r = {el,x:40+Math.random()*Math.max(100,innerWidth-140),y:120+Math.random()*Math.max(120,innerHeight-220),vx:(Math.random()<.5?-1:1)*(1.2+Math.random()*1.4),vy:(Math.random()<.5?-1:1)*(.8+Math.random()),hp,kind,dead:false};
+  el.innerHTML = (kind==='aliens'?ICONS.alien:ICONS.pirate) + `<div class="raiderHp">${hp} HP</div>`;
+  r.hit = (dmg,cx,cy)=>{
+    if(!activeEvent||r.dead) return; r.hp-=dmg; beep(kind==='aliens'?540:320,.06,'square',.04);
+    const f=document.createElement('div'); f.className='float'; f.style.fontSize='1rem'; f.style.color=kind==='aliens'?'#4ade80':'#fb923c'; f.textContent='-'+dmg; f.style.left=(cx||r.x+35)+'px'; f.style.top=(cy||r.y+20)+'px'; document.body.appendChild(f); setTimeout(()=>f.remove(),650);
+    if(r.hp<=0){ r.dead=true; activeEvent.killed++; beep(920,.1,'triangle',.05); el.remove(); raiders=raiders.filter(x=>!x.dead); if(activeEvent.killed>=activeEvent.target) finishEvent(true); else hudEvent(); }
+    else el.querySelector('.raiderHp').textContent = r.hp+' HP';
+  };
+  el.addEventListener('pointerdown', e=>{ e.stopPropagation(); r.hit(Math.max(1,Math.round(Math.sqrt(clickPower()))),e.clientX,e.clientY); });
+  $('#eventLayer').appendChild(el); raiders.push(r);
+}
+function hudEvent(){
+  const h=$('#eventHud'); if(!activeEvent) return h.classList.remove('show');
+  h.className='show '+activeEvent.kind;
+  $('#evTitle').textContent = activeEvent.kind==='pirates'?'ПИРАТСКИЙ АБОРДАЖ!':'ВТОРЖЕНИЕ ИНОПЛАНЕТЯН!';
+  $('#evSub').textContent = `Сбито: ${activeEvent.killed}/${activeEvent.target} · Бей по врагам или картошке!`;
+  $('#evTimer').textContent = Math.max(0,activeEvent.timeLeft/1000).toFixed(1)+'с';
+}
+function startEvent(){
+  if(activeEvent) return;
+  const kind = Math.random()<.5?'pirates':'aliens';
+  activeEvent = {kind,target:6+Math.floor(Math.random()*4),killed:0,timeLeft:16000};
+  raiders=[]; $('#eventLayer').innerHTML='';
+  banner(kind==='aliens'?'НЛО атакуют картошку!':'Пираты идут на абордаж!');
+  for(let i=0;i<4;i++) spawnRaider(kind); hudEvent();
+}
+function finishEvent(won){
+  const kind=activeEvent.kind; activeEvent=null; hudEvent(); raiders.forEach(r=>r.el.remove()); raiders=[];
+  if(won){
+    const bonus=Math.max(120,Math.round(autoPower()*8+clickPower()*12)), soul=Math.random()<.55?1:0;
+    state.count+=bonus; state.total+=bonus; state.souls+=soul; state.totalSoulsEarned+=soul;
+    state.eventsWon++; state.eventsToday++;
+    banner(`Победа! +${fmt(bonus)} картошек${soul?' и +1 душа!':'!'}`);
+  } else {
+    const pen=Math.min(state.count*.12,Math.max(50,autoPower()*4)); state.count=Math.max(0,state.count-pen);
+    banner(`Поражение: потеряно -${fmt(pen)} картошек`);
+  }
+  checkAchievements(); render(); renderLists(); renderQuests(); save();
+}
+setInterval(()=>{ if(!activeEvent && Math.random()<.085) startEvent(); }, 60000);
+setInterval(()=>{
+  if(!activeEvent) return; activeEvent.timeLeft-=100;
+  raiders.forEach(r=>{ r.x+=r.vx; r.y+=r.vy; if(r.x<20||r.x>innerWidth-96)r.vx*=-1; if(r.y<110||r.y>innerHeight-96)r.vy*=-1; r.el.style.left=r.x+'px'; r.el.style.top=r.y+'px'; });
+  if(raiders.length<3 && activeEvent.killed+raiders.length<activeEvent.target+2) spawnRaider(activeEvent.kind);
+  hudEvent(); if(activeEvent.timeLeft<=0) finishEvent(false);
+}, 100);
+
+/* ================= ДЕЙЛИК / ДЕНЬ ================= */
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+}
+function yesterdayKey() {
+  const d = new Date(Date.now() - 86400000);
+  return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+}
+function refreshDaily() {
+  const tk = todayKey();
+  if (state.dayKey !== tk) {
+    state.dayKey = tk;
+    state.daily = {date: tk, progress:0, done:false, claimed:false};
+    state.clicksToday = state.earnedToday = state.buysToday = state.casesToday = state.eventsToday = state.prestigesToday = 0;
+    /* стрик */
+    if (state.lastClaimDate === yesterdayKey()) { /* стрик продолжается, не трогаем */ }
+    else if (state.lastClaimDate !== tk) { state.streak = 0; }
+    /* выбрать дейлик */
+    const idx = Math.floor(Date.now() / 86400000) % DAILIES.length;
+    state.daily.defId = DAILIES[idx].id;
+  }
+  if (!state.daily.defId) {
+    const idx = Math.floor(Date.now() / 86400000) % DAILIES.length;
+    state.daily.defId = DAILIES[idx].id;
+  }
+}
+function currentDailyDef() {
+  return DAILIES.find(d => d.id === state.daily.defId) || DAILIES[0];
+}
+function dailyProgressValue() {
+  const def = currentDailyDef();
+  return state[def.track] || 0;
+}
+function updateDailyProgress() {
+  if (state.daily.claimed) return;
+  const def = currentDailyDef();
+  const v = dailyProgressValue();
+  state.daily.progress = Math.min(v, def.target);
+  if (v >= def.target && !state.daily.done) state.daily.done = true;
+}
+function claimDaily() {
+  if (!state.daily.done || state.daily.claimed) return;
+  const def = currentDailyDef();
+  state.souls += def.reward.souls;
+  state.totalSoulsEarned += def.reward.souls;
+  state.daily.claimed = true;
+  state.dailiesDone++;
+  /* стрик */
+  if (state.lastClaimDate !== todayKey()) {
+    if (state.lastClaimDate === yesterdayKey()) state.streak++;
+    else state.streak = 1;
+    state.lastClaimDate = todayKey();
+    state.bestStreak = Math.max(state.bestStreak, state.streak);
+  }
+  beep(1400,.2,'triangle',.07);
+  checkAchievements(); render(); renderLists(); renderQuests(); save();
+  banner(`Дейлик выполнен! +${def.reward.souls} душ. Стрик: ${state.streak}`);
+}
+
+/* ================= ДОСТИЖЕНИЯ ================= */
+function checkAchievements() {
+  let unlocked = 0;
+  ACHIEVEMENTS.forEach(a => {
+    if (!state.achievements[a.id] && a.check(state)) {
+      state.achievements[a.id] = true; unlocked++;
+      beep(1600,.15,'triangle',.06);
+    }
+  });
+  if (unlocked) { renderAch(); render(); }
+}
+
+/* ================= РЕНДЕР ================= */
+function render(){
+  $('#counter').textContent = fmt(state.count);
+  $('#cps').textContent = `${fmt(autoPower())} в секунду · клик: ${fmt(clickPower())}`;
+  const s = eqSkin();
+  const eff = SKIN_EFFECTS[s.id];
+  $('#skinBonusLine').textContent = `Скин «${s.name}»: ${eff ? eff.label : (s.clickBonus||s.autoBonus ? `+${Math.round((s.clickBonus||0)*100)}% клик, +${Math.round((s.autoBonus||0)*100)}% авто` : 'без эффекта')}`;
+  $('#souls').innerHTML = ICONS.soul + `<span>${state.souls} (${soulsAvail()} св.)</span>`;
+  $('#cores').innerHTML = ICONS.core + `<span>${state.cores}</span>`;
+  state.bestAuto = Math.max(state.bestAuto, autoPower());
+  state.bestClick = Math.max(state.bestClick, clickPower());
+  renderCases();
+}
+function renderLists(){
+  $('#items').innerHTML = '';
+  state.items.forEach(it=>{
+    const p=itemPrice(it), ok=state.count>=p, d=document.createElement('div');
+    d.className='cardRow'+(ok?'':' locked');
+    d.innerHTML=`<div class="icon">${ICONS.potato}</div><div class="body"><div class="name"><span>${it.name}</span><span class="subVal">x${it.owned}</span></div><div class="desc">${it.desc}</div><div class="price">${ICONS.potato}${fmt(p)}</div></div>`;
+    d.onclick=()=>{ const c=itemPrice(it); if(state.count>=c){ state.count-=c; it.owned++; state.buysToday++; beep(880,.08,'sine',.05); render(); renderLists(); renderQuests(); save(); } };
+    $('#items').appendChild(d);
+  });
+  $('#skills').innerHTML = ''; const av=soulsAvail();
+  state.skills.forEach(sk=>{
+    const max=sk.lvl>=sk.max, c=max?0:sk.cost[sk.lvl], ok=!max&&av>=c, d=document.createElement('div');
+    d.className='cardRow'+(max?' maxed':(ok?'':' locked'));
+    d.innerHTML=`<div class="icon">${ICONS.soul}</div><div class="body"><div class="name"><span>${sk.name}</span><span class="subVal">${sk.lvl}/${sk.max}</span></div><div class="desc">${sk.desc}</div><div class="price">${max?'MAX':ICONS.soul+c}</div></div>`;
+    if(ok) d.onclick=()=>{ if(soulsAvail()>=c){ state.soulsSpent+=c; sk.lvl++; beep(1320,.14,'triangle',.06); checkAchievements(); render(); renderLists(); save(); } };
+    $('#skills').appendChild(d);
+  });
+}
+function renderSkins(){
+  const grid=$('#skinGrid'); grid.innerHTML=''; $('#skinsCount').textContent=`${state.ownedSkins.length}/${SKINS.length}`;
+  /* коллекция */
+  const cb = $('#collectionBar');
+  const n = ownedCount();
+  const next = COLLECTION_BONUSES.find(c => n < c.need);
+  const prev = [...COLLECTION_BONUSES].reverse().find(c => n >= c.need);
+  let html = `<div class="cbTitle">Коллекция: ${n}/${SKINS.length}</div>`;
+  if (prev) html += `<div style="font-size:.75rem;color:#4ade80">Активно: ${prev.label}</div>`;
+  if (next) {
+    html += `<div class="progressBar" style="margin-top:6px"><div style="width:${Math.round(n/next.need*100)}%"></div></div><div class="cbNext">До следующего: ${next.need-n} скин(ов) → ${next.label}</div>`;
+  } else {
+    html += `<div class="cbNext" style="color:#fbbf24">Все коллекционные бонусы получены!</div>`;
+  }
+  cb.innerHTML = html;
+
+  SKINS.filter(s=>state.skinFilter==='all'||s.cat===state.skinFilter).forEach(s=>{
+    const own=state.ownedSkins.includes(s.id), eq=state.equippedSkin===s.id, d=document.createElement('div');
+    d.className=`skinCard r-${s.rarity}${own?' owned':''}${eq?' equipped':''}`;
+    const g=AURA_GLOW[s.aura];
+    const eff = SKIN_EFFECTS[s.id];
+    const bonusTxt = eff ? eff.label : (s.clickBonus||s.autoBonus ? skinBonusText(s) : 'без эффекта');
+    d.innerHTML=`${eq?'<div class="equippedBadge">НАДЕТО</div>':''}<div class="preview">${g?`<div class="miniAura" style="background:radial-gradient(circle,${g},transparent 75%)"></div>`:''}${potatoSVG(s,70)}</div><div class="name">${s.name}</div><div class="rarity r-${s.rarity}">${RARITY[s.rarity].name}</div><div class="bonusTag">${bonusTxt}</div><div class="metaLabel">${TEX_NAMES[s.texture]} · ${s.auraLabel}</div>`;
+    d.onclick=()=>openPreview(s.id); grid.appendChild(d);
+  });
+}
+function renderAch(){
+  const body = $('#achBody'); body.innerHTML='';
+  let done = 0;
+  ACHIEVEMENTS.forEach(a => {
+    const ok = !!state.achievements[a.id];
+    if (ok) done++;
+    const d = document.createElement('div');
+    d.className = 'achRow' + (ok?' done':'');
+    const bonusTxt = Object.entries(a.bonus).map(([k,v])=>{
+      const names = {clickMul:'клик',autoMul:'авто',soulsMul:'души',globalMul:'всё',eventMul:'ивенты'};
+      return `+${Math.round((v-1)*100)}% ${names[k]||k}`;
+    }).join(', ');
+    d.innerHTML = `<div class="achIcon">${ok?'✓':'🔒'}</div><div class="achBody"><div class="achName">${a.name}</div><div class="achDesc">${a.desc}</div><div class="achBonus">${bonusTxt}</div></div>`;
+    body.appendChild(d);
+  });
+  $('#achCount').textContent = `${done}/${ACHIEVEMENTS.length}`;
+}
+function renderQuests(){
+  const body = $('#questsBody'); if (!body) return;
+  updateDailyProgress();
+  const def = currentDailyDef();
+  const prog = state.daily.progress, tgt = def.target;
+  const pct = Math.min(100, Math.round(prog/tgt*100));
+  let html = `<div class="dailyBox">
+    <div class="dtTitle">📅 Дейлик · ${new Date().toLocaleDateString('ru-RU')}</div>
+    <div class="dtDesc">${def.name}</div>
+    <div class="progressBar"><div style="width:${pct}%"></div></div>
+    <div class="dtReward">Прогресс: ${fmt(prog)} / ${fmt(tgt)} · Награда: ${ICONS.soul} ${def.reward.souls}</div>
+    <button class="claimBtn" id="claimDailyBtn" ${(!state.daily.done||state.daily.claimed)?'disabled':''}>${state.daily.claimed?'✓ Получено':(state.daily.done?'Забрать награду':'Не выполнено')}</button>
+  </div>`;
+  /* стрик */
+  html += `<div class="dailyBox"><div class="dtTitle">🔥 Стрик: ${state.streak} дн. (рекорд ${state.bestStreak})</div>`;
+  html += `<div class="streakRow">`;
+  for (let i=0;i<7;i++){
+    const done = i < Math.min(7, state.streak);
+    const isToday = i === Math.min(6, Math.max(0, state.streak-1)) && state.lastClaimDate === todayKey();
+    html += `<div class="streakDay${done?' done':''}${isToday?' today':''}">${i+1}</div>`;
+  }
+  html += `</div><div class="cbNext" style="margin-top:8px">День 3: ×1.1 душ · День 7: гарантированный бонус</div></div>`;
+  body.innerHTML = html;
+  const btn = $('#claimDailyBtn'); if (btn) btn.onclick = claimDaily;
+}
+
+/* ================= SVG ================= */
+function skinBonusText(s){
+  const p = [];
+  if (s.clickBonus) p.push('+' + Math.round(s.clickBonus*100) + '% клик');
+  if (s.autoBonus) p.push('+' + Math.round(s.autoBonus*100) + '% авто');
+  return p.length ? p.join(' · ') : 'без бонуса';
+}
+function texSVG(tex, col){
+  if (!tex || tex === 'none') return '';
+  let out = '';
+  if (tex === 'pixel') for (let y=16;y<=184;y+=16) for (let x=16;x<=184;x+=16) if ((x+y)%32===0) out += `<rect x="${x}" y="${y}" width="12" height="12" fill="${col}" opacity=".35"/>`;
+  else if (tex === 'stripes') for (let i=-120;i<=260;i+=22) out += `<line x1="${i}" y1="0" x2="${i+120}" y2="200" stroke="${col}" stroke-width="6" opacity=".28"/>`;
+  else if (tex === 'dots') for (let y=20;y<=180;y+=24) for (let x=20;x<=180;x+=24) out += `<circle cx="${x}" cy="${y}" r="3.2" fill="${col}" opacity=".35"/>`;
+  else if (tex === 'grid') for (let g=20;g<=180;g+=24) out += `<line x1="${g}" y1="0" x2="${g}" y2="200" stroke="${col}" stroke-width="2" opacity=".25"/><line x1="0" y1="${g}" x2="200" y2="${g}" stroke="${col}" stroke-width="2" opacity=".25"/>`;
+  else if (tex === 'scales') for (let y=25;y<=185;y+=20) for (let x=15;x<=185;x+=24){ const sh=((y/20)%2)*12; out += `<path d="M ${x+sh-12} ${y} Q ${x+sh} ${y+14} ${x+sh+12} ${y}" fill="none" stroke="${col}" stroke-width="2.2" opacity=".32"/>`; }
+  else if (tex === 'crater') out = `<circle cx="52" cy="58" r="14" fill="none" stroke="${col}" stroke-width="2.5" opacity=".35"/><circle cx="146" cy="66" r="18" fill="none" stroke="${col}" stroke-width="2.5" opacity=".3"/><circle cx="64" cy="158" r="16" fill="none" stroke="${col}" stroke-width="2.5" opacity=".32"/>`;
+  else if (tex === 'circuit') out = `<path d="M 20 50 H 65 L 80 65 M 180 55 H 140 L 125 70 M 25 155 H 70 L 85 140" fill="none" stroke="${col}" stroke-width="2.5" opacity=".4"/>`;
+  return out;
+}
+function potatoSVG(s, size){
+  const u = s.id + '_' + Math.random().toString(36).slice(2,6);
+  return `<svg viewBox="0 0 200 200" width="${size}" height="${size}">
+    <defs><radialGradient id="g_${u}" cx="38%" cy="34%" r="72%"><stop offset="0%" stop-color="${s.body[0]}"/><stop offset="60%" stop-color="${s.body[1]}"/><stop offset="100%" stop-color="${s.body[2]}"/></radialGradient><clipPath id="c_${u}"><path d="M 96 16 C 128 14, 162 32, 173 66 C 182 94, 176 125, 165 152 C 154 178, 125 190, 96 189 C 66 188, 39 175, 29 147 C 19 119, 21 86, 36 58 C 49 32, 68 18, 96 16 Z"/></clipPath></defs>
+    <path d="M 96 16 C 128 14, 162 32, 173 66 C 182 94, 176 125, 165 152 C 154 178, 125 190, 96 189 C 66 188, 39 175, 29 147 C 19 119, 21 86, 36 58 C 49 32, 68 18, 96 16 Z" fill="url(#g_${u})" stroke="${s.stroke}" stroke-width="3.2"/>
+    <g clip-path="url(#c_${u})" opacity=".35">${texSVG(s.texture, s.stroke)}</g>
+    <ellipse cx="70" cy="68" rx="11" ry="6.5" fill="${s.spots}" opacity=".5"/><ellipse cx="136" cy="96" rx="13" ry="7.5" fill="${s.spots}" opacity=".45"/>
+    <path d="M 66 74 Q 78 70 90 74" stroke="${s.brow}" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M 110 74 Q 122 70 134 74" stroke="${s.brow}" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <circle cx="78" cy="88" r="11" fill="#fff"/><circle cx="122" cy="88" r="11" fill="#fff"/>
+    <circle cx="80" cy="90" r="6" fill="${s.pupil}"/><circle cx="124" cy="90" r="6" fill="${s.pupil}"/><circle cx="82" cy="88" r="2" fill="#fff"/><circle cx="126" cy="88" r="2" fill="#fff"/>
+    <path d="M 78 120 Q 100 138 122 120" stroke="${s.mouth}" stroke-width="4" fill="none" stroke-linecap="round"/></svg>`;
+}
+
+/* ================= ПРИМЕНЕНИЕ СКИНА ================= */
+function applySkin(id){
+  const s = skinById(id) || SKINS[0]; state.equippedSkin = s.id;
+  ['bodyStop0','bodyStop1','bodyStop2'].forEach((k,i)=>$('#'+k).setAttribute('stop-color',s.body[i]));
+  $('#potatoEllipse').setAttribute('stroke',s.stroke);
+  $('#potatoTextureLayer').innerHTML = texSVG(s.texture,s.stroke);
+  document.querySelectorAll('.spot').forEach(el=>el.setAttribute('fill',s.spots));
+  ['pupilL','pupilR'].forEach(k=>$('#'+k).style.fill=s.pupil);
+  $('#mouth').setAttribute('stroke',s.mouth); $('#browL').setAttribute('stroke',s.brow); $('#browR').setAttribute('stroke',s.brow);
+  $('#potatoWrap').style.setProperty('--glow',s.glow);
+  $('#potatoWrap').style.animation = s.id==='rainbow' ? 'rainbowHue 5s linear infinite' : '';
+  mainAura.setType(s.aura); render();
+}
+
+/* ================= ПРЕВЬЮ ================= */
+let previewId=null;
+function openPreview(id){
+  const s=skinById(id); if(!s) return; previewId=id;
+  $('#previewPotatoBox').innerHTML = potatoSVG(s, 290);
+  $('#previewName').textContent = s.name; $('#previewName').style.color = RARITY[s.rarity].color;
+  $('#previewRarity').textContent = RARITY[s.rarity].name; $('#previewRarity').className = 'r-'+s.rarity;
+  const eff = SKIN_EFFECTS[s.id];
+  $('#previewBonusLabel').textContent = 'Эффект: ' + (eff ? eff.label : skinBonusText(s));
+  $('#previewAuraLabel').textContent = `Текстура: ${TEX_NAMES[s.texture]} · Аура: ${s.auraLabel}`;
+  $('#previewOverlay').classList.add('show');
+  requestAnimationFrame(()=>{ previewAura.resize(); previewAura.setType(s.aura); });
+  const btn=$('#previewEquip'), own=state.ownedSkins.includes(id);
+  btn.textContent = state.equippedSkin===id?'Уже надето':(own?'Надеть':'Не выбит');
+  btn.disabled = !own || state.equippedSkin===id; btn.style.opacity = btn.disabled?.5:1;
+}
+$('#previewClose').onclick=()=>$('#previewOverlay').classList.remove('show');
+$('#previewEquip').onclick=()=>{ if(previewId&&state.ownedSkins.includes(previewId)){ applySkin(previewId); renderSkins(); save(); $('#previewOverlay').classList.remove('show'); } };
+
+/* ================= КЕЙСЫ ================= */
+let spinning=false;
+function renderCases(){
+  const c=caseById(state.selectedCase), sel=$('#caseSelector'); sel.innerHTML='';
+  CASES.forEach(item=>{
+    const b=document.createElement('button'); b.type='button'; b.className='caseTab'+(item.id===c.id?' active':'');
+    b.innerHTML=`<div class="ctName">${item.name}</div><div class="ctCost">${item.cost} душ</div>`;
+    b.onclick=()=>{ if(!spinning){ state.selectedCase=item.id; renderCases(); save(); } }; sel.appendChild(b);
+  });
+  $('#caseStop0').setAttribute('stop-color',c.grad[0]); $('#caseStop1').setAttribute('stop-color',c.grad[1]);
+  $('#caseBodyRect').setAttribute('stroke',c.stroke); $('#caseLidRect').setAttribute('fill',c.lid); $('#caseLidRect').setAttribute('stroke',c.stroke);
+  const av=soulsAvail(), btn=$('#openCaseBtn'); btn.disabled=spinning||av<c.cost;
+  btn.innerHTML = ICONS.soul + `<span>Открыть «${c.name}» (${c.cost} душ)</span>`;
+  $('#caseInfo').innerHTML = `Цена: <b>${c.cost} душ</b> (свободно: <b>${av}</b>) · Открыто: <b>${state.casesOpened}</b>`;
+  $('#casePoolChips').innerHTML = c.skins.map(id=>{ const s=skinById(id); return s?`<span class="poolChip r-${s.rarity}">${s.name}${state.ownedSkins.includes(id)?' ✓':''}</span>`:''; }).join('');
+}
+$('#openCaseBtn').onclick=()=>{
+  const c=caseById(state.selectedCase); if(spinning||soulsAvail()<c.cost) return;
+  spinning=true; state.soulsSpent+=c.cost; state.casesOpened++; state.casesToday++; render();
+  let r=Math.random()*Object.values(c.w).reduce((a,b)=>a+b,0), rar='common';
+  for(const k in c.w){ r-=c.w[k]; if(r<=0){ rar=k; break; } }
+  const pool=c.skins.map(skinById).filter(Boolean), byR=pool.filter(s=>s.rarity===rar);
+  const win=(byR.length?byR:pool)[Math.floor(Math.random()*(byR.length||pool.length))];
+  const isNew=!state.ownedSkins.includes(win.id), winIdx=35, tr=$('#rouletteTrack');
+  tr.innerHTML = Array.from({length:44},(_,i)=>{ const s=i===winIdx?win:pool[Math.floor(Math.random()*pool.length)]; return `<div class="rouletteItem" style="border-color:${RARITY[s.rarity].color}">${potatoSVG(s,54)}<div class="name">${s.name}</div><div class="rarity" style="color:${RARITY[s.rarity].color}">${RARITY[s.rarity].name}</div></div>`; }).join('');
+  $('#rouletteResult').classList.remove('show'); $('#rouletteOverlay').classList.add('show');
+  tr.style.transition='none'; tr.style.transform='translateX(0)';
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    const w=document.querySelector('.rouletteWindow').offsetWidth||600;
+    tr.style.transition='transform 4s cubic-bezier(.15,.9,.25,1)';
+    tr.style.transform=`translateX(${-(winIdx*108+54 - w/2 + (Math.random()*40-20))}px)`;
+  }));
+  setTimeout(()=>{
+    if(isNew) state.ownedSkins.push(win.id); else state.soulsSpent=Math.max(0,state.soulsSpent-1);
+    const g=AURA_GLOW[win.aura];
+    $('#resultPreview').innerHTML = (g?`<div class="bigAura" style="background:radial-gradient(circle,${g},transparent 75%)"></div>`:'')+potatoSVG(win,115);
+    $('#resultName').textContent=win.name; $('#resultName').style.color=RARITY[win.rarity].color;
+    const eff = SKIN_EFFECTS[win.id];
+    $('#resultRarity').textContent=`${RARITY[win.rarity].name} · ${eff?eff.label:skinBonusText(win)}`; $('#resultRarity').className='rrarity r-'+win.rarity;
+    $('#resultNew').style.display=isNew?'inline-block':'none'; $('#resultDup').style.display=isNew?'none':'block';
+    $('#rouletteResult').classList.add('show'); beep(1000,.2,'triangle',.07);
+    checkAchievements(); render(); renderSkins(); renderLists(); renderQuests(); save(); spinning=false;
+  }, 4200);
+};
+$('#closeResult').onclick=()=>{ if(!spinning) $('#rouletteOverlay').classList.remove('show'); };
+
+/* ================= КЛИК ================= */
+$('#potatoWrap').onclick=e=>{
+  let add = clickPower();
+  const e2 = eqEffect();
+  /* гэмбл-скин void */
+  if (e2.gambleZero || e2.gambleJackpot) {
+    const r = Math.random();
+    if (r < (e2.gambleZero||0)) add = 0;
+    else if (r < (e2.gambleZero||0) + (e2.gambleJackpot||0)) add *= (e2.jackpotMul||10);
+  }
+  /* крит */
+  let crit = false;
+  if (e2.critChance && Math.random() < e2.critChance) { add *= (e2.critMul||5); crit = true; }
+  state.count+=add; state.total+=add;
+  state.totalClicks++; state.clicksToday++; state.earnedToday += add;
+  $('#potatoWrap').classList.remove('pop'); void $('#potatoWrap').offsetWidth; $('#potatoWrap').classList.add('pop');
+  if(activeEvent && raiders.length) raiders[0].hit(1,e.clientX,e.clientY);
+  const f=document.createElement('div'); f.className='float';
+  f.textContent=(crit?'КРИТ! ':'')+'+'+fmt(add);
+  if (crit) { f.style.color='#f472b6'; f.style.fontSize='1.7rem'; }
+  f.style.left=e.clientX+'px'; f.style.top=e.clientY+'px';
+  document.body.appendChild(f); setTimeout(()=>f.remove(),800);
+  render(); renderLists(); renderQuests();
+  if (state.totalClicks % 50 === 0) checkAchievements();
+};
+
+/* ================= ПАНЕЛИ + КРЕСТИКИ ================= */
+function closePanel(id){ $('#'+id).classList.remove('open'); }
+document.querySelectorAll('[data-panel]').forEach(b=>b.onclick=()=>{
+  const id=b.dataset.panel, p=$('#'+id), open=p.classList.contains('open');
+  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('open'));
+  if(!open){
+    p.classList.add('open');
+    if(id==='skinsPanel')renderSkins();
+    if(id==='casesPanel')renderCases();
+    if(id==='questsPanel')renderQuests();
+    if(id==='achPanel')renderAch();
+    if(id==='treePanel')renderLists();
+    if(id==='shop')renderLists();
+  }
+});
+document.querySelectorAll('.panelClose').forEach(b=>b.onclick=()=>closePanel(b.dataset.close));
+/* клик по фону вне панели — закрыть */
+document.addEventListener('pointerdown', e=>{
+  document.querySelectorAll('.panel.open').forEach(p=>{
+    if (!p.contains(e.target) && !e.target.closest('[data-panel]')) p.classList.remove('open');
+  });
+});
+document.querySelectorAll('#skinFilters .filterBtn').forEach(b=>b.onclick=()=>{
+  state.skinFilter=b.dataset.cat; document.querySelectorAll('#skinFilters .filterBtn').forEach(x=>x.classList.remove('active')); b.classList.add('active'); renderSkins(); save();
+});
+
+/* ================= ПРЕСТИЖ ================= */
+$('#togglePrestige').onclick=()=>{
+  const sg = soulsGain(), cg = coresGain();
+  const canCore = state.totalSoulsEarned >= 100;
+  $('#prestigeDesc').textContent = canCore
+    ? 'Сброс в души — обычный престиж. Сброс в ядра — сбрасывает души и навыки, но даёт вечные ядра (×1.5 к клику/авто и −10% к ценам за штуку).'
+    : 'Сбросит прогресс и выдаст души для дерева навыков и кейсов.';
+  $('#soulsGain').innerHTML = ICONS.soul + `<span>+${sg} душ</span>`;
+  $('#coresGain').style.display = canCore ? 'block' : 'none';
+  if (canCore) $('#coresGain').innerHTML = `Или +${cg} ядер (всего душ заработано: ${state.totalSoulsEarned})`;
+  $('#doPrestige2').style.display = canCore ? 'inline-block' : 'none';
+  $('#prestigeOverlay').classList.add('show');
+};
+$('#cancelPrestige').onclick=()=>$('#prestigeOverlay').classList.remove('show');
+function doPrestigeToSouls() {
+  const g = soulsGain(); if (g<1) { banner('Слишком мало картошек для престижа'); return; }
+  state.souls += g; state.totalSoulsEarned += g;
+  state.count = skLvl('s_start')*5000;
+  state.total = 0; state.items.forEach(i=>i.owned=0);
+  state.prestigeCount++; state.prestigesToday++;
+  $('#prestigeOverlay').classList.remove('show');
+  checkAchievements(); render(); renderLists(); renderQuests(); save();
+  banner(`Перерождение! +${g} душ`);
+}
+function doPrestigeToCores() {
+  if (state.totalSoulsEarned < 100) return;
+  const cg = coresGain(); if (cg < 1) { banner('Нужно больше душ для ядер'); return; }
+  state.cores += cg; state.coresEarned += cg;
+  state.souls = 0; state.soulsSpent = 0;
+  state.skills.forEach(s=>s.lvl=0);
+  state.count = 0; state.total = 0; state.items.forEach(i=>i.owned=0);
+  state.prestigeCount++; state.prestigesToday++;
+  $('#prestigeOverlay').classList.remove('show');
+  checkAchievements(); render(); renderLists(); renderQuests(); save();
+  banner(`Сброс в ядра! +${cg} ядер (всего ${state.cores})`);
+}
+$('#doPrestige').onclick = doPrestigeToSouls;
+$('#doPrestige2').onclick = doPrestigeToCores;
+
+/* ================= МУЗЫКА ================= */
+$('#toggleMusic').onclick=()=>{ state.musicEnabled=!state.musicEnabled; $('#toggleMusic').textContent='Музыка: '+(state.musicEnabled?'ВКЛ':'ВЫКЛ'); $('#toggleMusic').classList.toggle('off',!state.musicEnabled); save(); };
+setInterval(()=>{
+  if(!state.musicEnabled) return;
+  try{ ensureAudio(); const t=actx.currentTime, idx=mStep%8;
+    const o=actx.createOscillator(),g=actx.createGain(); o.type='triangle'; o.frequency.setValueAtTime(BASS[idx],t); g.gain.setValueAtTime(.03,t); g.gain.exponentialRampToValueAtTime(.0008,t+.44); o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t+.45);
+    if(mStep%2===0){ const a=actx.createOscillator(),ag=actx.createGain(); a.type='sine'; a.frequency.setValueAtTime(ARP[(mStep/2)%8],t); ag.gain.setValueAtTime(.018,t); ag.gain.exponentialRampToValueAtTime(.0005,t+.5); a.connect(ag); ag.connect(actx.destination); a.start(t); a.stop(t+.52); }
+    mStep++;
+  }catch(e){}
+}, 460);
+
+/* ================= DEV ================= */
+$('#devBtn').onclick=()=>$('#cheatOverlay').classList.add('show'); $('#cheatClose').onclick=()=>$('#cheatOverlay').classList.remove('show');
+$('#cheatSouls').onclick=()=>{ const v=+($('#cheatInput').value||0); state.souls+=v; state.totalSoulsEarned+=v; render(); renderLists(); save(); };
+$('#cheatCores').onclick=()=>{ const v=+($('#cheatInput').value||0); state.cores+=v; state.coresEarned+=v; render(); save(); };
+$('#cheatPotatoes').onclick=()=>{ const v=+($('#cheatInput').value||0); state.count+=v; state.total+=v; render(); renderLists(); save(); };
+$('#cheatUnlockAll').onclick=()=>{ state.ownedSkins=SKINS.map(s=>s.id); renderSkins(); renderCases(); checkAchievements(); save(); };
+$('#cheatEvent').onclick=()=>{ $('#cheatOverlay').classList.remove('show'); startEvent(); };
+$('#reset').onclick=async ()=>{ if(confirm('Сбросить весь прогресс v19?')){ await Storage.remove(SAVE_KEY); localStorage.removeItem(SAVE_KEY_LEGACY); location.reload(); } };
+
+/* ================= OFFLINE ================= */
+function showOfflineModal(gain, sec) {
+  const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60);
+  const timeTxt = h>0 ? `${h}ч ${m}м` : `${m}м`;
+  $('#offlineText').textContent = `Пока тебя не было (${timeTxt}), картошка работала на 50% мощности:`;
+  $('#offlineGain').innerHTML = ICONS.potato + `<span>+${fmt(gain)}</span>`;
+  $('#offlineOverlay').classList.add('show');
+  $('#claimOffline').onclick = () => {
+    state.count += gain; state.total += gain;
+    state.offlineCollected++;
+    $('#offlineOverlay').classList.remove('show');
+    checkAchievements(); render(); renderLists(); renderQuests(); save();
+  };
+}
+
+/* ================= SAVE / LOAD ================= */
+function serialize() {
+  return JSON.stringify({
+    count:state.count,total:state.total,souls:state.souls,soulsSpent:state.soulsSpent,
+    cores:state.cores,coresEarned:state.coresEarned,totalSoulsEarned:state.totalSoulsEarned,
+    equippedSkin:state.equippedSkin,ownedSkins:state.ownedSkins,selectedCase:state.selectedCase,
+    casesOpened:state.casesOpened,skinFilter:state.skinFilter,musicEnabled:state.musicEnabled,
+    prestigeCount:state.prestigeCount,
+    items:state.items.map(i=>({id:i.id,owned:i.owned})),
+    skills:state.skills.map(s=>({id:s.id,lvl:s.lvl})),
+    daily:state.daily,streak:state.streak,bestStreak:state.bestStreak,lastClaimDate:state.lastClaimDate,
+    dailiesDone:state.dailiesDone,
+    achievements:state.achievements,
+    totalClicks:state.totalClicks,clicksToday:state.clicksToday,earnedToday:state.earnedToday,
+    buysToday:state.buysToday,casesToday:state.casesToday,eventsToday:state.eventsToday,prestigesToday:state.prestigesToday,
+    eventsWon:state.eventsWon,offlineCollected:state.offlineCollected,playTimeSec:state.playTimeSec,
+    bestAuto:state.bestAuto,bestClick:state.bestClick,
+    dayKey:state.dayKey,lastSeen:state.lastSeen
+  });
+}
+async function save(){
+  state.lastSeen = Date.now();
+  await Storage.set(SAVE_KEY, serialize());
+}
+function deserialize(s) {
+  if (!s) return;
+  const num = (v,d=0) => typeof v==='number' && isFinite(v) ? v : d;
+  state.count = num(s.count); state.total = num(s.total);
+  state.souls = num(s.souls); state.soulsSpent = num(s.soulsSpent);
+  state.cores = num(s.cores); state.coresEarned = num(s.coresEarned);
+  state.totalSoulsEarned = num(s.totalSoulsEarned);
+  state.equippedSkin = skinById(s.equippedSkin) ? s.equippedSkin : 'default';
+  state.ownedSkins = Array.isArray(s.ownedSkins) && s.ownedSkins.length ? s.ownedSkins : ['default'];
+  if (!state.ownedSkins.includes('default')) state.ownedSkins.unshift('default');
+  state.selectedCase = s.selectedCase || 'starter';
+  state.casesOpened = num(s.casesOpened);
+  state.skinFilter = s.skinFilter || 'all';
+  state.musicEnabled = s.musicEnabled !== false;
+  state.prestigeCount = num(s.prestigeCount);
+  if (Array.isArray(s.items)) state.items.forEach(i=>{ const o=s.items.find(x=>x.id===i.id); if(o) i.owned = num(o.owned); });
+  if (Array.isArray(s.skills)) state.skills.forEach(k=>{ const o=s.skills.find(x=>x.id===k.id); if(o) k.lvl = num(o.lvl); });
+  if (s.daily) state.daily = Object.assign(state.daily, s.daily);
+  state.streak = num(s.streak); state.bestStreak = num(s.bestStreak);
+  state.lastClaimDate = s.lastClaimDate || '';
+  state.dailiesDone = num(s.dailiesDone);
+  if (s.achievements) state.achievements = s.achievements;
+  state.totalClicks = num(s.totalClicks); state.clicksToday = num(s.clicksToday);
+  state.earnedToday = num(s.earnedToday); state.buysToday = num(s.buysToday);
+  state.casesToday = num(s.casesToday); state.eventsToday = num(s.eventsToday);
+  state.prestigesToday = num(s.prestigesToday); state.eventsWon = num(s.eventsWon);
+  state.offlineCollected = num(s.offlineCollected); state.playTimeSec = num(s.playTimeSec);
+  state.bestAuto = num(s.bestAuto); state.bestClick = num(s.bestClick);
+  state.dayKey = s.dayKey || '';
+  state.lastSeen = num(s.lastSeen, Date.now());
+}
+async function load(){
+  let raw = null;
+  try { raw = await Storage.get(SAVE_KEY); } catch(e){}
+  if (!raw) {
+    /* миграция с v18 */
+    try {
+      const legacy = localStorage.getItem(SAVE_KEY_LEGACY);
+      if (legacy) { deserialize(JSON.parse(legacy)); banner('Прогресс v18 перенесён в v19!'); return; }
+    } catch(e){}
+  } else {
+    try { deserialize(JSON.parse(raw)); } catch(e){}
+  }
+}
+
+/* ================= BANNER ================= */
+function banner(txt, ms=4200){
+  const b = $('#dialogBox'); b.textContent = txt; b.classList.add('show');
+  clearTimeout(banner.t); banner.t = setTimeout(()=>b.classList.remove('show'), ms);
+}
+
+/* ================= ИНИЦИАЛИЗАЦИЯ ================= */
+(async () => {
+  await load();
+  refreshDaily();
+
+  /* offline */
+  const now = Date.now();
+  const sec = Math.min(MAX_OFFLINE_SEC, Math.max(0, (now - state.lastSeen) / 1000));
+  if (sec > 60) {
+    const gain = autoPower() * sec * OFFLINE_EFF;
+    if (gain > 0) setTimeout(()=>showOfflineModal(gain, sec), 400);
+  }
+  state.lastSeen = now;
+
+  /* кнопка музыки */
+  $('#toggleMusic').textContent='Музыка: '+(state.musicEnabled?'ВНЛ':'ВЫКЛ');
+  $('#toggleMusic').textContent='Музыка: '+(state.musicEnabled?'ВКЛ':'ВЫКЛ');
+  $('#toggleMusic').classList.toggle('off',!state.musicEnabled);
+
+  applySkin(state.equippedSkin);
+  refreshDaily();
+  render(); renderLists(); renderSkins(); renderCases(); renderAch(); renderQuests();
+
+  /* скрываем лоадер */
+  $('#loadingOverlay').classList.remove('show');
+
+  /* таймеры */
+  setInterval(()=>{ const inc=autoPower()/10; if(inc>0){ state.count+=inc; state.total+=inc; state.earnedToday+=inc; render(); } }, 100);
+  setInterval(()=>{ state.playTimeSec += 1; }, 1000);
+  setInterval(()=>{ updateDailyProgress(); renderQuests(); }, 2000);
+  setInterval(save, 3000);
+  setInterval(()=>{ refreshDaily(); if(state.daily) renderQuests(); }, 30000);
+  window.addEventListener('beforeunload', ()=>{ state.lastSeen=Date.now(); save(); });
+  document.addEventListener('visibilitychange', ()=>{ if (document.hidden) { state.lastSeen=Date.now(); save(); } });
+})();
+</script>
+</body>
+</html>
