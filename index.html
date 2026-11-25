@@ -2057,55 +2057,102 @@ function banner(txt, ms=4200){
   clearTimeout(banner.t); banner.t = setTimeout(()=>b.classList.remove('show'), ms);
 }
 
-/* ================= ИНИЦИАЛИЗАЦИЯ ================= */
+/* ================= ИНИЦИАЛИЗАЦИЯ (БРОНЕБОЙНАЯ) ================= */
 (async () => {
-  await load();
-  refreshDaily();
+  // Принудительно убираем лоадер через 3 секунды, что бы ни случилось
+  const failsafe = setTimeout(() => {
+    const lo = $('#loadingOverlay');
+    if (lo) lo.classList.remove('show');
+  }, 3000);
 
-  /* offline */
-  const now = Date.now();
-  const sec = Math.min(MAX_OFFLINE_SEC, Math.max(0, (now - state.lastSeen) / 1000));
-  if (sec > 60) {
-    const gain = autoPower() * sec * OFFLINE_EFF;
-    if (gain > 0) setTimeout(()=>showOfflineModal(gain, sec), 400);
-  }
-  state.lastSeen = now;
-
-  $('#toggleMusic').textContent='Музыка: '+(state.musicEnabled?'ВКЛ':'ВЫКЛ');
-  $('#toggleMusic').classList.toggle('off',!state.musicEnabled);
-
-  /* секретные категории 4.8 */
-  const allOwned = ids => ids.length && ids.every(id=>state.ownedSkins.includes(id));
-  CATEGORY_BONUSES.forEach(cb => {
-    const ids = SKINS.filter(s=>s.cat===cb.cat || (cb.cat==='mythic' && s.rarity==='mythic')).map(s=>s.id);
-    if (allOwned(ids) && !state.secrets.categoryClaimed[cb.cat]) {
-      state.secrets.categoryClaimed[cb.cat] = true;
-      if (cb.cores) { state.cores += cb.cores; state.coresEarned += cb.cores; }
-      if (cb.musicRetro) retro = true;
-      if (cb.starfield) { /* звёздный фон: просто помечаем, визуал — через body */ document.body.classList.add('starfield'); }
-      if (cb.globalMul) { banner(`${cb.label}: +10% ко всему!`); }
-      else banner(`${cb.label} активирован!`);
+  try {
+    // 1. Загрузка с защитой от зависания Telegram CloudStorage
+    let raw = null;
+    try {
+      raw = await Promise.race([
+        Storage.get(SAVE_KEY),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500))
+      ]);
+    } catch (e) {
+      console.warn('CloudStorage timeout, using localStorage');
+      raw = localStorage.getItem(SAVE_KEY);
     }
-  });
 
-  applySkin(state.equippedSkin);
-  renderAll(); renderLists(); renderSkins(); renderAch(); renderQuests(); renderLore();
+    if (!raw) {
+      try {
+        const legacy = localStorage.getItem(SAVE_KEY_LEGACY);
+        if (legacy) { deserialize(JSON.parse(legacy)); banner('Прогресс v19 перенесён в v20!'); }
+      } catch(e){}
+    } else {
+      try { deserialize(JSON.parse(raw)); } catch(e){}
+    }
 
-  $('#loadingOverlay').classList.remove('show');
+    refreshDaily();
 
-  setInterval(()=>{ const inc=autoPower()/10; if(inc>0){ state.count+=inc; state.total+=inc; state.totalAllTime+=inc; state.earnedToday+=inc; renderCounter(); } }, 100);
-  setInterval(()=>{ state.playTimeSec += 1; }, 1000);
-  setInterval(()=>{ updateDailyProgress(); if ($('#questsPanel').classList.contains('open')) renderQuests(); }, 2000);
-  setInterval(save, 15000);
-  setInterval(()=>{ refreshDaily(); }, 30000);
-  setInterval(checkAchievements, 5000);
-  window.addEventListener('beforeunload', ()=>{ state.lastSeen=Date.now(); save(); });
-  document.addEventListener('visibilitychange', ()=>{ if (document.hidden) { state.lastSeen=Date.now(); save(); } });
+    // 2. Оффлайн прогресс
+    const now = Date.now();
+    const sec = Math.min(MAX_OFFLINE_SEC, Math.max(0, (now - state.lastSeen) / 1000));
+    if (sec > 60) {
+      const gain = autoPower() * sec * OFFLINE_EFF;
+      if (gain > 0) setTimeout(()=>showOfflineModal(gain, sec), 400);
+    }
+    state.lastSeen = now;
 
-  /* 4.2: секреты скинов: void простаивает */
-  let voidIdleTimer = null;
-  function resetVoidIdle(){ state.secrets.voidIdle = 0; }
-  document.addEventListener('pointerdown', resetVoidIdle, {passive:true});
+    // 3. Кнопка музыки
+    $('#toggleMusic').textContent='Музыка: '+(state.musicEnabled?'ВКЛ':'ВЫКЛ');
+    $('#toggleMusic').classList.toggle('off',!state.musicEnabled);
+
+    // 4. Секретные коллекции
+    const allOwned = ids => ids.length && ids.every(id=>state.ownedSkins.includes(id));
+    CATEGORY_BONUSES.forEach(cb => {
+      const ids = SKINS.filter(s=>s.cat===cb.cat || (cb.cat==='mythic' && s.rarity==='mythic')).map(s=>s.id);
+      if (allOwned(ids) && !state.secrets.categoryClaimed[cb.cat]) {
+        state.secrets.categoryClaimed[cb.cat] = true;
+        if (cb.cores) { state.cores += cb.cores; state.coresEarned += cb.cores; }
+        if (cb.musicRetro) retro = true;
+        if (cb.starfield) { document.body.classList.add('starfield'); }
+        if (cb.globalMul) { banner(`${cb.label}: +10% ко всему!`); }
+        else banner(`${cb.label} активирован!`);
+      }
+    });
+
+    // 5. Первичный рендер
+    applySkin(state.equippedSkin);
+    renderAll(); renderLists(); renderSkins(); renderAch(); renderQuests(); renderLore();
+
+    // 6. Снимаем лоадер (успешный сценарий)
+    clearTimeout(failsafe);
+    $('#loadingOverlay').classList.remove('show');
+
+    // 7. Таймеры
+    setInterval(()=>{ const inc=autoPower()/10; if(inc>0){ state.count+=inc; state.total+=inc; state.totalAllTime+=inc; state.earnedToday+=inc; renderCounter(); } }, 100);
+    setInterval(()=>{ state.playTimeSec += 1; }, 1000);
+    setInterval(()=>{ updateDailyProgress(); if ($('#questsPanel')?.classList.contains('open')) renderQuests(); }, 2000);
+    setInterval(save, 15000);
+    setInterval(()=>{ refreshDaily(); }, 30000);
+    setInterval(checkAchievements, 5000);
+    window.addEventListener('beforeunload', ()=>{ state.lastSeen=Date.now(); save(); });
+    document.addEventListener('visibilitychange', ()=>{ if (document.hidden) { state.lastSeen=Date.now(); save(); } });
+
+    // 8. Музыка после первого клика
+    if (state.musicEnabled) {
+      const startMusicOnce = () => {
+        ensureAudio();
+        MusicEngine.start();
+        document.removeEventListener('pointerdown', startMusicOnce);
+        document.removeEventListener('keydown', startMusicOnce);
+      };
+      document.addEventListener('pointerdown', startMusicOnce, { once:true });
+      document.addEventListener('keydown', startMusicOnce, { once:true });
+    }
+
+  } catch (err) {
+    // Ловим ЛЮБУЮ ошибку инициализации и выпускаем игрока в игру (пусть даже кривую)
+    console.error('Init error:', err);
+    clearTimeout(failsafe);
+    $('#loadingOverlay').classList.remove('show');
+    banner('Ошибка загрузки: ' + err.message, 8000);
+  }
 })();
 </script>
 </body>
