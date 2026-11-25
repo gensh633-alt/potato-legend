@@ -333,13 +333,11 @@
 
 <script>
 /* =========================================================
-   КАРТОШКА-ЛЕГЕНДА v20.0
-   - P0-фиксы: #eventLayer/#eventHud/.raider/#dialogBox, hudEvent(null), totalAllTime
-   - Баланс: тиры апгрейдов (каждые 10 ур. ×1.5), кап 40, множители престижа
-   - Лор: скины + боссы + достижения, панель История (3 таба)
-   - Секреты: 4.1, 4.2, 4.3, 4.5, 4.6, 4.8 (без 4.4 и 4.7)
-   - Перф: renderCounter/renderSkinLine/renderCases раздельно
-   - Haptics, save 15с, версия сейва + миграции
+   КАРТОШКА-ЛЕГЕНДА v20.1 (FIXED)
+   - Исправлены конфликты переменных (actx, retro)
+   - Добавлена процедурная музыка с плейлистом и боевым треком
+   - Полный сброс с 2FA
+   - Бронебойная загрузка
    ========================================================= */
 
 const VERSION = 20;
@@ -358,7 +356,7 @@ const Storage = {
   async get(key) {
     if (TG?.CloudStorage) {
       const cloud = await new Promise(res => {
-        const t = setTimeout(()=>res(null), 3000);
+        const t = setTimeout(()=>res(null), 1500);
         try { TG.CloudStorage.getItem(key, (err, val) => { clearTimeout(t); res(err ? null : val); }); }
         catch(e){ clearTimeout(t); res(null); }
       });
@@ -412,7 +410,6 @@ const AURA_GLOW = {
 };
 
 /* ================= СКИНЫ + ЛОР ================= */
-/* формат: ... старые поля ..., lore */
 const SKINS_RAW = [
   ['default','Классика','classic','common','none',['#f5d76e','#d4a03c','#a67c2e'],'#8a6420','#b8862e','#3a2a1a','#5a3a10','#5a3a10','rgba(255,210,63,.35)','none','—',0,0,
     'Первая картошка, которую нашли на сервере. Она не помнит, откуда пришла — только что была здесь всегда.'],
@@ -489,7 +486,6 @@ const SKIN_EFFECTS = {
   pl_galaxy:   {clickMul:1.20, label:'+20% клик'}
 };
 
-/* ================= КОЛЛЕКЦИИ ================= */
 const COLLECTION_BONUSES = [
   {need:5,  autoMul:1.10, label:'5 скинов: ×1.10 авто'},
   {need:10, clickMul:1.15, label:'10 скинов: ×1.15 клик'},
@@ -497,15 +493,13 @@ const COLLECTION_BONUSES = [
   {need:20, autoMul:1.50, label:'20 скинов: ×1.50 авто'},
   {need:26, globalMul:2.00, label:'26 скинов: ×2 ко всему'}
 ];
-/* Секретные коллекции 4.8 */
 const CATEGORY_BONUSES = [
   {cat:'elemental', label:'Повелитель стихий (все elemental)', globalMul:1.10},
   {cat:'pixel',     label:'Ретро-геймер (все pixel)',         musicRetro:true},
   {cat:'planetary', label:'Космонавт (все planetary)',        starfield:true},
-  {cat:'mythic',    label:'Миф (все mythic)',                 cores:1}  /* даёт +1 ядро один раз */
+  {cat:'mythic',    label:'Миф (все mythic)',                 cores:1}
 ];
 
-/* ================= КЕЙСЫ ================= */
 const CASES = [
   {id:'starter',name:'Стартовый',cost:5,grad:['#60a5fa','#2563eb'],stroke:'#1e3a8a',lid:'#3b82f6',w:{common:50,uncommon:28,rare:15,epic:6,legendary:1,mythic:0},skins:['default','dark','earth','green','mint','px_8bit','el_ice','gold','sapphire','pl_mars','purple']},
   {id:'storm',name:'Клубневой шторм',cost:12,grad:['#4ade80','#15803d'],stroke:'#14532d',lid:'#22c55e',w:{common:22,uncommon:30,rare:26,epic:15,legendary:6,mythic:1},skins:['dark','earth','green','mint','px_8bit','px_gameboy','el_ice','el_fire','gold','sapphire','pl_mars','purple','toxic','ruby','el_storm','pl_saturn']},
@@ -514,7 +508,6 @@ const CASES = [
 ];
 const caseById = id => CASES.find(c => c.id === id) || CASES[0];
 
-/* ================= ЛОР ЗА БОССОВ ================= */
 const BOSS_LORE = [
   {need:1,  text:'Первый пиратский капитан был повержен. На его шляпе была гравировка: «Картошка — тоже человек».'},
   {need:3,  text:'Третий налёт инопланетян закончился тем, что они попросили политического убежища. Мы отказали.'},
@@ -524,7 +517,6 @@ const BOSS_LORE = [
   {need:50, text:'Полсотни. Ты стал легендой среди пиратов и пришельцев. Они слагают о тебе песни. Плохие, но всё же.'}
 ];
 
-/* ================= ДЕЙЛИКИ ================= */
 const DAILIES = [
   {id:'click500', name:'Кликни 500 раз', target:500, reward:{souls:2}, track:'clicksToday'},
   {id:'click2000', name:'Кликни 2000 раз', target:2000, reward:{souls:5}, track:'clicksToday'},
@@ -535,9 +527,8 @@ const DAILIES = [
   {id:'event1', name:'Победи 1 ивент', target:1, reward:{souls:4}, track:'eventsToday'},
   {id:'prestige1', name:'Сделай 1 престиж', target:1, reward:{souls:8}, track:'prestigesToday'}
 ];
-const STREAK_BONUS = {3:1.10, 7:1.25}; /* × душ на дейлике за стрик */
+const STREAK_BONUS = {3:1.10, 7:1.25};
 
-/* ================= ДОСТИЖЕНИЯ + ЛОР ================= */
 const ACHIEVEMENTS = [
   {id:'a_click1',   name:'Первый клик',     desc:'Кликни 1 раз',              check:s=>s.totalClicks>=1,        bonus:{clickMul:1.01}, lore:'Ты кликнул. Картошка ответила. Так началась легенда.'},
   {id:'a_click100', name:'Сотка',           desc:'Кликни 100 раз',            check:s=>s.totalClicks>=100,      bonus:{clickMul:1.02}, lore:'Сто кликов. Пальцы болят. Картошка довольна.'},
@@ -570,14 +561,12 @@ const ACHIEVEMENTS = [
   {id:'a_offline1', name:'Возвращение',     desc:'Получи оффлайн-доход',      check:s=>s.offlineCollected>=1,   bonus:{autoMul:1.03}, lore:'Ты ушёл. Картошка работала. Ты вернулся. Картошка сделала вид, что не ждала.'},
   {id:'a_play1h',   name:'Час игры',        desc:'Проведи 1 час в игре',      check:s=>s.playTimeSec>=3600,     bonus:{globalMul:1.05}, lore:'Час. Ты мог сделать что-то полезное. Ты кликал картошку. Это тоже полезно.'},
   {id:'a_play24h',  name:'Сутки',           desc:'Проведи 24 часа в игре',    check:s=>s.playTimeSec>=86400,    bonus:{globalMul:1.15}, lore:'Сутки. Картошка снится тебе. Ты снишься картошке. Вы — одно.'},
-  /* секретные 4.1/4.2/4.5/4.6 */
   {id:'a_stubborn', name:'Упорный',         desc:'Кликни по пустому месту 20 раз', check:s=>s.secrets.emptyClicks>=20, bonus:{clickMul:1.01}, lore:'Тут ничего нет. Но ты упорный. Картошка это ценит.'},
   {id:'a_dark666',  name:'Тёмная сторона',  desc:'666 кликов в скине «Тёмная»',    check:s=>s.secrets.darkClicks>=666,  bonus:{autoMul:1.05}, lore:'Тёмная сторона картошки приняла тебя.'},
   {id:'a_nightOwl', name:'Полуночник',      desc:'Кликни 100 раз с 0:00 до 5:00',  check:s=>s.secrets.nightClicks>=100, bonus:{clickMul:1.05}, lore:'Ты не спишь. Картошка не спит. Вы бодрствуете вместе.'},
   {id:'a_berserker',name:'Берсерк',         desc:'100 кликов по врагу за ивент',   check:s=>s.secrets.berserkerDone,    bonus:{eventMul:1.10}, lore:'Сто кликов по одному врагу. Врагу не повезло.'}
 ];
 
-/* ================= СОСТОЯНИЕ ================= */
 const state = {
   count:0,total:0,totalAllTime:0,souls:0,soulsSpent:0,cores:0,coresEarned:0,totalSoulsEarned:0,
   equippedSkin:'default',ownedSkins:['default'],selectedCase:'starter',casesOpened:0,skinFilter:'all',
@@ -606,7 +595,6 @@ const state = {
   totalClicks:0,clicksToday:0,earnedToday:0,buysToday:0,casesToday:0,eventsToday:0,prestigesToday:0,
   eventsWon:0,offlineCollected:0,playTimeSec:0,bestAuto:0,bestClick:0,
   dayKey:'',lastSaveTs:Date.now(),
-  /* секреты */
   secrets:{
     eyeClicks:0, combo:[], lastClickTime:0, emptyClicks:0, devOpens:0,
     darkClicks:0, voidIdle:0, nightClicks:0, berserkerClicks:0, berserkerDone:false,
@@ -616,7 +604,6 @@ const state = {
   }
 };
 
-/* ================= ПРОИЗВОДНЫЕ ================= */
 const skLvl = id => state.skills.find(s=>s.id===id).lvl;
 const eqSkin = () => skinById(state.equippedSkin) || SKINS[0];
 const eqEffect = () => SKIN_EFFECTS[state.equippedSkin] || {};
@@ -644,7 +631,6 @@ function collectionBonuses() {
     if (c.soulsMul) b.soulsMul *= c.soulsMul;
     if (c.globalMul)b.globalMul*= c.globalMul;
   });
-  /* секретные категории */
   CATEGORY_BONUSES.forEach(cb => {
     if (!cb.globalMul) return;
     const ids = SKINS.filter(s=>s.cat===cb.cat || (cb.cat==='mythic' && s.rarity==='mythic')).map(s=>s.id);
@@ -657,7 +643,6 @@ function coreBonuses() {
   return {clickMul: Math.pow(1.5,c), autoMul: Math.pow(1.5,c), priceMul: Math.pow(0.9,c)};
 }
 
-/* тир-бонус апгрейда: каждые 10 уровней ×1.5 */
 const tierMul = owned => Math.pow(1.5, Math.floor(owned/10));
 
 function clickPower() {
@@ -698,7 +683,6 @@ function soulsGain() {
 }
 function coresGain() { return Math.floor(Math.sqrt(Math.max(0,state.totalSoulsEarned) / 100)); }
 
-/* ================= АУРЫ ================= */
 function makeAura(canvas){
   const ctx = canvas.getContext('2d');
   return {
@@ -751,11 +735,236 @@ requestAnimationFrame(function loop(ts){
   requestAnimationFrame(loop);
 });
 
-/* ================= ЗВУК ================= */
-let actx=null, mStep=0, retro=false;
-const BASS=[110,110,87.31,87.31,130.81,130.81,98,98], ARP=[220,261.63,329.63,392,440,392,329.63,261.63];
-function ensureAudio(){ if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)(); if(actx.state==='suspended') actx.resume(); }
-function beep(f,d,tp='sine',v=.06){ try{ ensureAudio(); const o=actx.createOscillator(),g=actx.createGain(); o.type=tp; o.frequency.value=f; g.gain.value=v; g.gain.exponentialRampToValueAtTime(.001,actx.currentTime+d); o.connect(g); g.connect(actx.destination); o.start(); o.stop(actx.currentTime+d); }catch(e){} }
+/* ================= ЗВУК / МУЗЫКА ================= */
+let actx = null;
+let masterGain = null;
+let musicGain = null;
+let musicDuck = 1;
+let battleGain = null;
+let retro = false;
+
+function ensureAudio(){
+  if (actx) { if (actx.state === 'suspended') actx.resume(); return; }
+  actx = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = actx.createGain(); masterGain.gain.value = 0.9; masterGain.connect(actx.destination);
+  musicGain = actx.createGain(); musicGain.gain.value = 0.0; musicGain.connect(masterGain);
+  battleGain = actx.createGain(); battleGain.gain.value = 0.0; battleGain.connect(masterGain);
+}
+function beep(f,d,tp='sine',v=.06, dest){
+  try{
+    ensureAudio();
+    const o=actx.createOscillator(), g=actx.createGain();
+    o.type=tp; o.frequency.value=f;
+    g.gain.value=v;
+    g.gain.exponentialRampToValueAtTime(.0001, actx.currentTime + d);
+    o.connect(g); g.connect(dest || masterGain);
+    o.start(); o.stop(actx.currentTime + d + .02);
+  }catch(e){}
+}
+
+const NOTE = (()=>{
+  const names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const map = {};
+  for (let oct=0; oct<=8; oct++){
+    names.forEach((n,i)=>{ map[n+oct] = 440 * Math.pow(2, (oct*12 + i - 57) / 12); });
+  }
+  return map;
+})();
+const n = (name)=>NOTE[name] || 440;
+
+const TRACKS = [
+  {id:'meadow', name:'Луговой мотив', tempo:96, bars:8, bass:'A2 - A2 - F2 - G2 - A2 - A2 - C3 - G2 -', arp:'A4 · C5 · E5 · C5 · A4 · C5 · E5 · G5 ·', lead:'· · · · E5 - D5 - C5 - · · · · A4 - G4 - ·', drums:{kick:[0,6,8,14], snare:[4,12], hat:[0,2,4,6,8,10,12,14]}, synth:'sine', chord:['A3','C4','E4']},
+  {id:'night', name:'Ночная грядка', tempo:82, bars:8, bass:'D2 - - - D2 - - - A#1 - - - A#1 - - -', arp:'D4 · F4 · A4 · F4 · D4 · F4 · A4 · C5 ·', lead:'· · D5 - · · C5 - · · A4 - · · F4 - ·', drums:{kick:[0,8], snare:[12], hat:[2,6,10,14]}, synth:'triangle', chord:['D3','F3','A3']},
+  {id:'sunrise', name:'Восход на ферме', tempo:110, bars:8, bass:'C3 - C3 - G2 - G2 - A2 - A2 - F2 - F2 -', arp:'C4 E4 G4 C5 G4 E4 C4 G3 · E4 G4 C5 E5 C5 G4 E4', lead:'· G4 - A4 - · · E4 - · D4 - C4 - · · ·', drums:{kick:[0,4,8,12], snare:[4,12], hat:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]}, synth:'triangle', chord:['C4','E4','G4']},
+  {id:'storm', name:'Гроза', tempo:132, bars:8, bass:'E2 - E2 - G2 - F#2 - E2 - E2 - B1 - D2 -', arp:'E4 · G4 · B4 · G4 · E4 · G4 · B4 · D5 ·', lead:'B4 - · B4 - A4 - · G4 - · · E4 - · · ·', drums:{kick:[0,3,6,9,12,15], snare:[4,12], hat:[0,2,4,6,8,10,12,14]}, synth:'sawtooth', chord:['E3','G3','B3']},
+  {id:'cosmos', name:'Космос', tempo:100, bars:8, bass:'F2 - - - C2 - - - D2 - - - A1 - - -', arp:'F4 · A4 · C5 · A4 · F4 · A4 · C5 · E5 ·', lead:'· · · A4 - - C5 - · · · A4 - F4 - ·', drums:{kick:[0,8], snare:[4,12], hat:[0,4,8,12]}, synth:'sine', chord:['F3','A3','C4']},
+  {id:'pixel', name:'8-битный', tempo:120, bars:8, bass:'G2 G2 - G2 G2 - G2 A2 - A2 A2 - A2 F2 -', arp:'G4 G4 · G4 G4 · G4 A4 · A4 A4 · A4 F4 ·', lead:'· · G5 - F#5 - E5 - · · D5 - C5 - · · ·', drums:{kick:[0,4,8,12], snare:[4,12], hat:[0,2,4,6,8,10,12,14]}, synth:'square', chord:['G3','B3','D4']},
+  {id:'battle', name:'Нашествие', tempo:150, bars:4, battle:true, bass:'E2 E2 E2 E2 F2 F2 F2 F2 G2 G2 G2 G2 B1 B1 B1 B1', arp:'E4 · B4 · E5 · B4 · E4 · G4 · B4 · E5 ·', lead:'· · E5 - D5 - B4 - · · G4 - A4 - B4 - ·', drums:{kick:[0,2,4,6,8,10,12,14], snare:[4,12], hat:[1,3,5,7,9,11,13,15]}, synth:'sawtooth', chord:['E3','G3','B3']}
+];
+const trackById = id => TRACKS.find(t => t.id === id);
+
+function parsePattern(str){
+  const tokens = str.trim().split(/\s+/);
+  const events = [];
+  let lastNote = null, lastStep = -1;
+  tokens.forEach((tok, i)=>{
+    if (tok === '·' || tok === '.') { lastNote = null; return; }
+    if (tok === '-') { if (lastNote && lastStep >= 0) events[events.length-1].len++; return; }
+    lastNote = tok; lastStep = i;
+    events.push({ step: i, note: tok, len: 1 });
+  });
+  return events;
+}
+const parsedCache = new Map();
+function getParsed(track){
+  if (parsedCache.has(track.id)) return parsedCache.get(track.id);
+  const p = { bass: parsePattern(track.bass), arp: parsePattern(track.arp), lead: parsePattern(track.lead) };
+  parsedCache.set(track.id, p);
+  return p;
+}
+
+const stepDur = tempo => 60 / tempo / 4;
+
+function playStep(track, stepInBar, bar, tStart, dest){
+  const dur = stepDur(track.tempo);
+  const parsed = getParsed(track);
+
+  const bassEv = parsed.bass.find(e => e.step === stepInBar);
+  if (bassEv){
+    const durB = bassEv.len * dur * 0.95;
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = retro ? 'square' : (track.synth === 'sine' ? 'triangle' : 'sawtooth');
+    o.frequency.value = n(bassEv.note) / 2;
+    g.gain.setValueAtTime(0.0001, tStart);
+    g.gain.exponentialRampToValueAtTime(0.09, tStart + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, tStart + durB);
+    o.connect(g); g.connect(dest);
+    o.start(tStart); o.stop(tStart + durB + 0.02);
+  }
+
+  const arpEv = parsed.arp.find(e => e.step === stepInBar);
+  if (arpEv){
+    const durA = arpEv.len * dur * 0.85;
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = retro ? 'square' : (track.synth === 'sawtooth' ? 'triangle' : 'sine');
+    o.frequency.value = n(arpEv.note);
+    g.gain.setValueAtTime(0.0001, tStart);
+    g.gain.exponentialRampToValueAtTime(0.045, tStart + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, tStart + durA);
+    o.connect(g); g.connect(dest);
+    o.start(tStart); o.stop(tStart + durA + 0.02);
+  }
+
+  const leadEv = parsed.lead.find(e => e.step === stepInBar);
+  if (leadEv){
+    const durL = leadEv.len * dur;
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = retro ? 'square' : (track.synth === 'sawtooth' ? 'sawtooth' : 'triangle');
+    o.frequency.value = n(leadEv.note);
+    g.gain.setValueAtTime(0.0001, tStart);
+    g.gain.exponentialRampToValueAtTime(0.05, tStart + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, tStart + durL);
+    o.connect(g); g.connect(dest);
+    o.start(tStart); o.stop(tStart + durL + 0.02);
+  }
+
+  const dr = track.drums;
+  if (dr.kick.includes(stepInBar)){
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(120, tStart);
+    o.frequency.exponentialRampToValueAtTime(45, tStart + 0.12);
+    g.gain.setValueAtTime(0.18, tStart);
+    g.gain.exponentialRampToValueAtTime(0.0001, tStart + 0.16);
+    o.connect(g); g.connect(dest); o.start(tStart); o.stop(tStart + 0.2);
+  }
+  if (dr.snare.includes(stepInBar)){
+    const bufSize = Math.floor(actx.sampleRate * 0.15);
+    const buf = actx.createBuffer(1, bufSize, actx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i=0;i<bufSize;i++) data[i] = (Math.random()*2-1) * (1 - i/bufSize);
+    const src = actx.createBufferSource(); src.buffer = buf;
+    const bp = actx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value = 1800; bp.Q.value = 0.8;
+    const g = actx.createGain(); g.gain.value = 0.07;
+    src.connect(bp); bp.connect(g); g.connect(dest); src.start(tStart);
+  }
+  if (dr.hat.includes(stepInBar)){
+    const bufSize = Math.floor(actx.sampleRate * 0.04);
+    const buf = actx.createBuffer(1, bufSize, actx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i=0;i<bufSize;i++) data[i] = (Math.random()*2-1) * (1 - i/bufSize);
+    const src = actx.createBufferSource(); src.buffer = buf;
+    const hp = actx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value = 7000;
+    const g = actx.createGain(); g.gain.value = 0.03;
+    src.connect(hp); hp.connect(g); g.connect(dest); src.start(tStart);
+  }
+}
+
+const MusicEngine = {
+  playing: false, current: null, stepInBar: 0, barInTrack: 0, nextStepTime: 0,
+  lookahead: 0.12, schedulerTimer: null, playlist: [], history: [],
+  battleActive: false, normalTarget: 0.6, battleTarget: 0.7,
+  init(){
+    this.playlist = TRACKS.filter(t => !t.battle).map(t => t.id);
+    this.shuffle(); this.history = [];
+  },
+  shuffle(){
+    for (let i=this.playlist.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [this.playlist[i], this.playlist[j]] = [this.playlist[j], this.playlist[i]];
+    }
+  },
+  pickNext(){
+    if (!this.playlist.length) { this.playlist = TRACKS.filter(t => !t.battle).map(t => t.id); this.shuffle(); }
+    let id = this.playlist.shift();
+    if (this.history[this.history.length-1] === id && this.playlist.length) {
+      const alt = this.playlist.shift(); this.playlist.push(id); id = alt;
+    }
+    this.history.push(id);
+    if (this.history.length > 6) this.history.shift();
+    return trackById(id);
+  },
+  start(){
+    if (this.playing) return;
+    this.playing = true; ensureAudio();
+    this.current = this.pickNext();
+    this.stepInBar = 0; this.barInTrack = 0;
+    this.nextStepTime = actx.currentTime + 0.05;
+    musicGain.gain.cancelScheduledValues(actx.currentTime);
+    musicGain.gain.setValueAtTime(musicGain.gain.value, actx.currentTime);
+    musicGain.gain.linearRampToValueAtTime(this.normalTarget, actx.currentTime + 1.5);
+    this.schedulerTimer = setInterval(()=>this.tick(), 25);
+  },
+  stop(){
+    this.playing = false;
+    if (this.schedulerTimer){ clearInterval(this.schedulerTimer); this.schedulerTimer = null; }
+    if (musicGain) { musicGain.gain.cancelScheduledValues(actx.currentTime); musicGain.gain.linearRampToValueAtTime(0.0001, actx.currentTime + 0.4); }
+    if (battleGain) { battleGain.gain.cancelScheduledValues(actx.currentTime); battleGain.gain.linearRampToValueAtTime(0.0001, actx.currentTime + 0.4); }
+  },
+  tick(){
+    if (!this.playing || !actx) return;
+    while (this.nextStepTime < actx.currentTime + this.lookahead) {
+      const track = this.current;
+      const dur = stepDur(track.tempo);
+      const dest = track.battle ? battleGain : musicGain;
+      playStep(track, this.stepInBar, this.barInTrack, this.nextStepTime, dest);
+      this.stepInBar++;
+      if (this.stepInBar >= 16){
+        this.stepInBar = 0; this.barInTrack++;
+        if (this.barInTrack >= track.bars){
+          this.barInTrack = 0;
+          if (track.battle) { /* loop */ } else { this.current = this.pickNext(); }
+        }
+      }
+      this.nextStepTime += dur;
+    }
+  },
+  startBattle(){
+    if (this.battleActive) return;
+    this.battleActive = true; ensureAudio();
+    if (!this.playing) this.start();
+    const battle = trackById('battle');
+    this.current = battle; this.stepInBar = 0; this.barInTrack = 0;
+    musicGain.gain.cancelScheduledValues(actx.currentTime);
+    musicGain.gain.setValueAtTime(musicGain.gain.value, actx.currentTime);
+    musicGain.gain.linearRampToValueAtTime(this.normalTarget * 0.25, actx.currentTime + 0.4);
+    battleGain.gain.cancelScheduledValues(actx.currentTime);
+    battleGain.gain.setValueAtTime(battleGain.gain.value, actx.currentTime);
+    battleGain.gain.linearRampToValueAtTime(this.battleTarget, actx.currentTime + 0.4);
+  },
+  endBattle(){
+    if (!this.battleActive) return;
+    this.battleActive = false;
+    if (!this.playing) return;
+    musicGain.gain.cancelScheduledValues(actx.currentTime);
+    musicGain.gain.setValueAtTime(musicGain.gain.value, actx.currentTime);
+    musicGain.gain.linearRampToValueAtTime(this.normalTarget, actx.currentTime + 0.8);
+    battleGain.gain.cancelScheduledValues(actx.currentTime);
+    battleGain.gain.setValueAtTime(battleGain.gain.value, actx.currentTime);
+    battleGain.gain.linearRampToValueAtTime(0.0001, actx.currentTime + 0.8);
+    setTimeout(()=>{ if (!this.battleActive && this.playing) { this.current = this.pickNext(); this.stepInBar = 0; this.barInTrack = 0; } }, 850);
+  }
+};
+MusicEngine.init();
 
 /* ================= ИВЕНТЫ ================= */
 let activeEvent=null, raiders=[];
@@ -795,10 +1004,13 @@ function startEvent(){
   raiders=[]; $('#eventLayer').innerHTML='';
   banner(kind==='aliens'?'НЛО атакуют картошку!':'Пираты идут на абордаж!');
   for(let i=0;i<4;i++) spawnRaider(kind); hudEvent();
+  if (state.musicEnabled) MusicEngine.startBattle();
 }
 function finishEvent(won){
+  if (!activeEvent) return;
   const kind=activeEvent.kind; const duration = Date.now() - activeEvent.startTs;
   activeEvent=null; hudEvent(); raiders.forEach(r=>r.el.remove()); raiders=[];
+  if (state.musicEnabled) MusicEngine.endBattle();
   if(won){
     const ab = achBonuses();
     const bonus=Math.max(120,Math.round((autoPower()*8+clickPower()*12) * ab.eventMul)), soul=Math.random()<.55?1:0;
@@ -870,7 +1082,6 @@ function claimDaily() {
   banner(`Дейлик! +${reward} душ (стрик ${state.streak})`);
 }
 
-/* ================= ДОСТИЖЕНИЯ ================= */
 function checkAchievements() {
   let unlocked = 0;
   ACHIEVEMENTS.forEach(a => {
@@ -883,7 +1094,7 @@ function checkAchievements() {
   if (unlocked) { renderAch(); renderLore(); }
 }
 
-/* ================= РЕНДЕР (по частям) ================= */
+/* ================= РЕНДЕР ================= */
 function renderCounter(){ $('#counter').textContent = fmt(state.count); }
 function renderSkinLine(){
   const s = eqSkin(), eff = SKIN_EFFECTS[s.id];
@@ -925,7 +1136,6 @@ function renderSkins(){
   if (next) {
     html += `<div class="progressBar" style="margin-top:6px"><div style="width:${Math.round(n/next.need*100)}%"></div></div><div class="cbNext">До следующего: ${next.need-n} → ${next.label}</div>`;
   } else html += `<div class="cbNext" style="color:#fbbf24">Все коллекционные бонусы получены!</div>`;
-  /* категорийные */
   CATEGORY_BONUSES.forEach(cb2 => {
     const ids = SKINS.filter(s=>s.cat===cb2.cat || (cb2.cat==='mythic' && s.rarity==='mythic')).map(s=>s.id);
     const have = ids.filter(id=>state.ownedSkins.includes(id)).length;
@@ -1027,7 +1237,6 @@ function renderCases(){
   $('#casePoolChips').innerHTML = c.skins.map(id=>{ const s=skinById(id); return s?`<span class="poolChip r-${s.rarity}">${s.name}${state.ownedSkins.includes(id)?' ✓':''}</span>`:''; }).join('');
 }
 
-/* ================= SVG ================= */
 function skinBonusText(s){
   const p = [];
   if (s.clickBonus) p.push('+' + Math.round(s.clickBonus*100) + '% клик');
@@ -1059,7 +1268,6 @@ function potatoSVG(s, size){
     <path d="M 78 120 Q 100 138 122 120" stroke="${s.mouth}" stroke-width="4" fill="none" stroke-linecap="round"/></svg>`;
 }
 
-/* ================= ПРИМЕНЕНИЕ СКИНА ================= */
 function applySkin(id){
   const s = skinById(id) || SKINS[0]; state.equippedSkin = s.id;
   ['bodyStop0','bodyStop1','bodyStop2'].forEach((k,i)=>$('#'+k).setAttribute('stop-color',s.body[i]));
@@ -1073,7 +1281,6 @@ function applySkin(id){
   mainAura.setType(s.aura); renderSkinLine(); save();
 }
 
-/* ================= ПРЕВЬЮ ================= */
 let previewId=null;
 function openPreview(id){
   const s=skinById(id); if(!s) return; previewId=id;
@@ -1093,7 +1300,6 @@ function openPreview(id){
 $('#previewClose').onclick=()=>$('#previewOverlay').classList.remove('show');
 $('#previewEquip').onclick=()=>{ if(previewId&&state.ownedSkins.includes(previewId)){ applySkin(previewId); renderSkins(); save(); $('#previewOverlay').classList.remove('show'); haptic(); } };
 
-/* ================= КЕЙСЫ ================= */
 let spinning=false;
 $('#openCaseBtn').onclick=()=>{
   const c=caseById(state.selectedCase); if(spinning||soulsAvail()<c.cost) return;
@@ -1124,20 +1330,13 @@ $('#openCaseBtn').onclick=()=>{
     $('#resultNew').style.display=isNew?'inline-block':'none'; $('#resultDup').style.display=isNew?'none':'block';
     $('#rouletteResult').classList.add('show'); beep(1000,.2,'triangle',.07); hapticNotify('success');
     checkAchievements(); renderAll(); renderSkins(); renderLists(); renderQuests(); renderLore(); save(); spinning=false;
-    /* секрет px_cyber: 10 кейсов подряд */
-    if (state.secrets.pxCyberCases >= 10) {
-      state.secrets.pxCyberCases = 0;
-      state.souls += 5; state.totalSoulsEarned += 5;
-      banner('Взлом кейсов! +5 душ');
-    }
+    if (state.secrets.pxCyberCases >= 10) { state.secrets.pxCyberCases = 0; state.souls += 5; state.totalSoulsEarned += 5; banner('Взлом кейсов! +5 душ'); }
   }, 4200);
 };
 $('#closeResult').onclick=()=>{ if(!spinning) $('#rouletteOverlay').classList.remove('show'); };
 
-/* ================= СЕКРЕТЫ ================= */
 function addSouls(n, msg){ state.souls+=n; state.totalSoulsEarned+=n; renderCPS(); if(msg) banner(msg); checkAchievements(); save(); }
 
-/* 4.1: глаз — 10 кликов */
 ['pupilL','pupilR'].forEach(id=>{
   $('#'+id).addEventListener('pointerdown', e=>{
     e.stopPropagation();
@@ -1151,34 +1350,24 @@ function addSouls(n, msg){ state.souls+=n; state.totalSoulsEarned+=n; renderCPS(
     }
   });
 });
-/* 4.1: сон — 60 сек без кликов */
 let idleTimer = null;
 function resetIdle(){
   $('#potatoBody').classList.remove('sleeping');
   clearTimeout(idleTimer);
-  idleTimer = setTimeout(()=>{
-    $('#potatoBody').classList.add('sleeping');
-  }, 60000);
+  idleTimer = setTimeout(()=>{ $('#potatoBody').classList.add('sleeping'); }, 60000);
 }
 resetIdle();
-/* 4.1: комбо 5 быстрых кликов */
 function checkCombo(){
   const now = Date.now();
   state.secrets.combo = state.secrets.combo.filter(t=>now-t<1000);
   state.secrets.combo.push(now);
-  if (state.secrets.combo.length >= 5) {
-    state.secrets.combo = [];
-    banner('КОМБО! Следующий клик ×1.5');
-    state.secrets.comboBuff = true;
-  }
+  if (state.secrets.combo.length >= 5) { state.secrets.combo = []; banner('КОМБО! Следующий клик ×1.5'); state.secrets.comboBuff = true; }
 }
-/* 4.1: пустые клики */
 document.addEventListener('pointerdown', e=>{
   if (e.target.closest('#potatoWrap') || e.target.closest('.btn') || e.target.closest('.panel') || e.target.closest('.overlay') || e.target.closest('.topbar') || e.target.closest('.raider')) return;
   state.secrets.emptyClicks++;
   if (state.secrets.emptyClicks === 20) checkAchievements();
 }, {passive:true});
-/* 4.1: DEV 3 раза */
 $('#devBtn').onclick=()=>{
   $('#cheatOverlay').classList.add('show');
   state.secrets.devOpens++;
@@ -1188,26 +1377,18 @@ $('#devBtn').onclick=()=>{
     renderSkins(); checkAchievements(); save();
   }
 };
-/* 4.1: dblclick counter */
 $('#counter').addEventListener('dblclick', ()=>{
   const c = $('#counter'); c.classList.remove('wiggle'); void c.offsetWidth; c.classList.add('wiggle');
   banner('1 + 1 = 2? Картошка не уверена.');
 });
-/* 4.2: dark 666 */
 function tickSkinSecrets(){
-  if (state.equippedSkin === 'dark') {
-    if (state.secrets.darkClicks >= 666) checkAchievements();
-  }
+  if (state.equippedSkin === 'dark') { if (state.secrets.darkClicks >= 666) checkAchievements(); }
   if (state.equippedSkin === 'void') {
     state.secrets.voidIdle++;
-    if (state.secrets.voidIdle >= 30 && !state.secrets.voidSoulGiven) {
-      state.secrets.voidSoulGiven = true;
-      addSouls(1, 'Пустота смотрит в ответ. +1 душа');
-    }
+    if (state.secrets.voidIdle >= 30 && !state.secrets.voidSoulGiven) { state.secrets.voidSoulGiven = true; addSouls(1, 'Пустота смотрит в ответ. +1 душа'); }
   }
 }
 setInterval(tickSkinSecrets, 1000);
-/* 4.5: 3 тапа по слову «Картошка» в лоре */
 document.addEventListener('click', e=>{
   if (e.target.closest('#lorePanel') && e.target.textContent && e.target.textContent.includes('Картошка')) {
     state.secrets.loreTap++;
@@ -1218,13 +1399,11 @@ document.addEventListener('click', e=>{
     }
   }
 });
-/* 4.5: ресет-детект */
 if (state.secrets.gameResets > 0 && !state.secrets.resetBanner) {
   state.secrets.resetBanner = true;
   setTimeout(()=>banner('Ты уже был здесь. Картошка помнит.'), 1500);
 }
 
-/* ================= КЛИК ================= */
 $('#potatoWrap').onclick=e=>{
   resetIdle();
   let add = clickPower();
@@ -1252,12 +1431,9 @@ $('#potatoWrap').onclick=e=>{
   document.body.appendChild(f); setTimeout(()=>f.remove(),800);
   renderCounter(); renderCPS();
   if (state.totalClicks % 50 === 0) checkAchievements();
-  if (state.secrets.darkClicks === 666 && state.equippedSkin==='dark') {
-    banner('Тёмная сторона картошки приняла тебя.', 6000); checkAchievements();
-  }
+  if (state.secrets.darkClicks === 666 && state.equippedSkin==='dark') { banner('Тёмная сторона картошки приняла тебя.', 6000); checkAchievements(); }
 };
 
-/* ================= ПАНЕЛИ ================= */
 function closePanel(id){ $('#'+id).classList.remove('open'); }
 $$('[data-panel]').forEach(b=>b.onclick=()=>{
   const id=b.dataset.panel, p=$('#'+id), open=p.classList.contains('open');
@@ -1287,7 +1463,6 @@ $$('#loreTabs .loreTab').forEach(b=>b.onclick=()=>{
   renderLore();
 });
 
-/* ================= ПРЕСТИЖ ================= */
 $('#togglePrestige').onclick=()=>{
   const sg = soulsGain(), cg = coresGain(), canCore = state.totalSoulsEarned >= 100;
   $('#prestigeDesc').textContent = canCore
@@ -1326,482 +1501,37 @@ function doPrestigeToCores() {
 $('#doPrestige').onclick = doPrestigeToSouls;
 $('#doPrestige2').onclick = doPrestigeToCores;
 
-/* ================= МУЗЫКА v2 (процедурная, плейлист + боевой трек) ================= */
-
-let actx = null;
-let masterGain = null;
-let musicGain = null;     /* общая громкость музыки */
-let musicDuck = 1;        /* 1 = норма, 0.25 = приглушено под бой */
-let battleGain = null;    /* громкость боевого слоя */
-let retro = false;        /* 8-битный режим (включается коллекцией pixel) */
-
-function ensureAudio(){
-  if (actx) {
-    if (actx.state === 'suspended') actx.resume();
-    return;
-  }
-  actx = new (window.AudioContext || window.webkitAudioContext)();
-  masterGain = actx.createGain(); masterGain.gain.value = 0.9; masterGain.connect(actx.destination);
-  musicGain = actx.createGain(); musicGain.gain.value = 0.0; musicGain.connect(masterGain);
-  battleGain = actx.createGain(); battleGain.gain.value = 0.0; battleGain.connect(masterGain);
-}
-
-function beep(f,d,tp='sine',v=.06, dest){
-  try{
-    ensureAudio();
-    const o=actx.createOscillator(), g=actx.createGain();
-    o.type=tp; o.frequency.value=f;
-    g.gain.value=v;
-    g.gain.exponentialRampToValueAtTime(.0001, actx.currentTime + d);
-    o.connect(g); g.connect(dest || masterGain);
-    o.start(); o.stop(actx.currentTime + d + .02);
-  }catch(e){}
-}
-
-/* ==== НОТЫ ==== */
-const NOTE = (()=>{
-  const names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-  const map = {};
-  for (let oct=0; oct<=8; oct++){
-    names.forEach((n,i)=>{ map[n+oct] = 440 * Math.pow(2, (oct*12 + i - 57) / 12); });
-  }
-  return map;
-})();
-const n = (name)=>NOTE[name] || 440;
-
-/* ==== ОПИСАНИЯ ТРЕКОВ ====
-   bars — длина в тактах, beatsPerBar — 4
-   tempo — BPM, root — тональность (для арпа)
-   bass / arp / lead / drums — паттерны по шагам (16 шагов = 1 такт)
-   где '·' — пауза, '-' — продление предыдущей ноты
-*/
-const TRACKS = [
-  {
-    id:'meadow', name:'Луговой мотив', tempo:96, bars:8,
-    bass:'A2 - A2 - F2 - G2 - A2 - A2 - C3 - G2 -',
-    arp: 'A4 · C5 · E5 · C5 · A4 · C5 · E5 · G5 ·',
-    lead:'· · · · E5 - D5 - C5 - · · · · A4 - G4 - ·',
-    drums:{kick:[0,6,8,14], snare:[4,12], hat:[0,2,4,6,8,10,12,14]},
-    synth:'sine', chord:['A3','C4','E4']
-  },
-  {
-    id:'night', name:'Ночная грядка', tempo:82, bars:8,
-    bass:'D2 - - - D2 - - - Bb1 - - - Bb1 - - -',
-    arp: 'D4 · F4 · A4 · F4 · D4 · F4 · A4 · C5 ·',
-    lead:'· · D5 - · · C5 - · · A4 - · · F4 - ·',
-    drums:{kick:[0,8], snare:[12], hat:[2,6,10,14]},
-    synth:'triangle', chord:['D3','F3','A3']
-  },
-  {
-    id:'sunrise', name:'Восход на ферме', tempo:110, bars:8,
-    bass:'C3 - C3 - G2 - G2 - A2 - A2 - F2 - F2 -',
-    arp: 'C4 E4 G4 C5 G4 E4 C4 G3 · E4 G4 C5 E5 C5 G4 E4',
-    lead:'· G4 - A4 - · · E4 - · D4 - C4 - · · ·',
-    drums:{kick:[0,4,8,12], snare:[4,12], hat:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]},
-    synth:'triangle', chord:['C4','E4','G4']
-  },
-  {
-    id:'storm', name:'Гроза', tempo:132, bars:8,
-    bass:'E2 - E2 - G2 - F#2 - E2 - E2 - B1 - D2 -',
-    arp: 'E4 · G4 · B4 · G4 · E4 · G4 · B4 · D5 ·',
-    lead:'B4 - · B4 - A4 - · G4 - · · E4 - · · ·',
-    drums:{kick:[0,3,6,9,12,15], snare:[4,12], hat:[0,2,4,6,8,10,12,14]},
-    synth:'sawtooth', chord:['E3','G3','B3']
-  },
-  {
-    id:'cosmos', name:'Космос', tempo:100, bars:8,
-    bass:'F2 - - - C2 - - - D2 - - - A1 - - -',
-    arp: 'F4 · A4 · C5 · A4 · F4 · A4 · C5 · E5 ·',
-    lead:'· · · A4 - - C5 - · · · A4 - F4 - ·',
-    drums:{kick:[0,8], snare:[4,12], hat:[0,4,8,12]},
-    synth:'sine', chord:['F3','A3','C4']
-  },
-  {
-    id:'pixel', name:'8-битный', tempo:120, bars:8,
-    bass:'G2 G2 - G2 G2 - G2 A2 - A2 A2 - A2 F2 -',
-    arp: 'G4 G4 · G4 G4 · G4 A4 · A4 A4 · A4 F4 ·',
-    lead:'· · G5 - F#5 - E5 - · · D5 - C5 - · · ·',
-    drums:{kick:[0,4,8,12], snare:[4,12], hat:[0,2,4,6,8,10,12,14]},
-    synth:'square', chord:['G3','B3','D4']
-  },
-  {
-    id:'battle', name:'Нашествие', tempo:150, bars:4, battle:true,
-    bass:'E2 E2 E2 E2 F2 F2 F2 F2 G2 G2 G2 G2 B1 B1 B1 B1',
-    arp: 'E4 · B4 · E5 · B4 · E4 · G4 · B4 · E5 ·',
-    lead:'· · E5 - D5 - B4 - · · G4 - A4 - B4 - ·',
-    drums:{kick:[0,2,4,6,8,10,12,14], snare:[4,12], hat:[1,3,5,7,9,11,13,15]},
-    synth:'sawtooth', chord:['E3','G3','B3']
-  }
-];
-
-const trackById = id => TRACKS.find(t => t.id === id);
-
-/* ==== РАЗБОР ПАТТЕРНОВ ==== */
-/* '·' = пауза, '-' = продление. Возвращает массив {step, note, len} */
-function parsePattern(str){
-  const tokens = str.trim().split(/\s+/);
-  const events = [];
-  let lastNote = null, lastStep = -1;
-  tokens.forEach((tok, i)=>{
-    if (tok === '·' || tok === '.') { lastNote = null; return; }
-    if (tok === '-') { if (lastNote && lastStep >= 0) events[events.length-1].len++; return; }
-    lastNote = tok; lastStep = i;
-    events.push({ step: i, note: tok, len: 1 });
-  });
-  return events;
-}
-const parsedCache = new Map();
-function getParsed(track){
-  if (parsedCache.has(track.id)) return parsedCache.get(track.id);
-  const p = {
-    bass: parsePattern(track.bass),
-    arp:  parsePattern(track.arp),
-    lead: parsePattern(track.lead)
-  };
-  parsedCache.set(track.id, p);
-  return p;
-}
-
-/* ==== ТАЙМЛАЙН: 16 шагов в такте, 4/4 ==== */
-const STEP_BEATS = 0.25; /* 16-я */
-
-function stepDur(tempo){ return 60 / tempo / 4; } /* длительность 16-го шага в секундах */
-
-/* Воспроизведение одного шага для трека */
-function playStep(track, stepInBar, bar, tStart, dest){
-  const dur = stepDur(track.tempo);
-  const parsed = getParsed(track);
-  const absStep = ((bar * 16) + stepInBar);
-
-  /* --- БАС --- */
-  const bassEv = parsed.bass.find(e => e.step === stepInBar);
-  if (bassEv){
-    const durB = bassEv.len * dur * 0.95;
-    const o = actx.createOscillator(), g = actx.createGain();
-    o.type = retro ? 'square' : (track.synth === 'sine' ? 'triangle' : 'sawtooth');
-    o.frequency.value = n(bassEv.note) / 2;
-    g.gain.setValueAtTime(0.0001, tStart);
-    g.gain.exponentialRampToValueAtTime(0.09, tStart + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, tStart + durB);
-    o.connect(g); g.connect(dest);
-    o.start(tStart); o.stop(tStart + durB + 0.02);
-  }
-
-  /* --- АРП --- */
-  const arpEv = parsed.arp.find(e => e.step === stepInBar);
-  if (arpEv){
-    const durA = arpEv.len * dur * 0.85;
-    const o = actx.createOscillator(), g = actx.createGain();
-    o.type = retro ? 'square' : (track.synth === 'sawtooth' ? 'triangle' : 'sine');
-    o.frequency.value = n(arpEv.note);
-    g.gain.setValueAtTime(0.0001, tStart);
-    g.gain.exponentialRampToValueAtTime(0.045, tStart + 0.008);
-    g.gain.exponentialRampToValueAtTime(0.0001, tStart + durA);
-    o.connect(g); g.connect(dest);
-    o.start(tStart); o.stop(tStart + durA + 0.02);
-  }
-
-  /* --- ЛИД --- */
-  const leadEv = parsed.lead.find(e => e.step === stepInBar);
-  if (leadEv){
-    const durL = leadEv.len * dur;
-    const o = actx.createOscillator(), g = actx.createGain();
-    o.type = retro ? 'square' : (track.synth === 'sawtooth' ? 'sawtooth' : 'triangle');
-    o.frequency.value = n(leadEv.note);
-    g.gain.setValueAtTime(0.0001, tStart);
-    g.gain.exponentialRampToValueAtTime(0.05, tStart + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, tStart + durL);
-    o.connect(g); g.connect(dest);
-    o.start(tStart); o.stop(tStart + durL + 0.02);
-    /* эхо-подкладка */
-    if (!retro && track.synth !== 'square'){
-      const o2 = actx.createOscillator(), g2 = actx.createGain();
-      o2.type = 'sine';
-      o2.frequency.value = n(leadEv.note) * 2;
-      g2.gain.setValueAtTime(0.0001, tStart + durL*0.5);
-      g2.gain.exponentialRampToValueAtTime(0.02, tStart + durL*0.55);
-      g2.gain.exponentialRampToValueAtTime(0.0001, tStart + durL*1.2);
-      o2.connect(g2); g2.connect(dest);
-      o2.start(tStart + durL*0.5); o2.stop(tStart + durL*1.25);
-    }
-  }
-
-  /* --- БАРАБАНЫ --- */
-  const dr = track.drums;
-  const mk = (type, freq, dur, vol)=>{
-    const o = actx.createOscillator(), g = actx.createGain();
-    o.type = type; o.frequency.value = freq;
-    g.gain.setValueAtTime(vol, tStart);
-    g.gain.exponentialRampToValueAtTime(0.0001, tStart + dur);
-    o.connect(g); g.connect(dest);
-    o.start(tStart); o.stop(tStart + dur + 0.02);
-  };
-  if (dr.kick.includes(stepInBar)){
-    /* kick: быстрый спад синуса */
-    const o = actx.createOscillator(), g = actx.createGain();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(120, tStart);
-    o.frequency.exponentialRampToValueAtTime(45, tStart + 0.12);
-    g.gain.setValueAtTime(0.18, tStart);
-    g.gain.exponentialRampToValueAtTime(0.0001, tStart + 0.16);
-    o.connect(g); g.connect(dest);
-    o.start(tStart); o.stop(tStart + 0.2);
-  }
-  if (dr.snare.includes(stepInBar)){
-    /* snare: шум через bandpass */
-    const bufSize = Math.floor(actx.sampleRate * 0.15);
-    const buf = actx.createBuffer(1, bufSize, actx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i=0;i<bufSize;i++) data[i] = (Math.random()*2-1) * (1 - i/bufSize);
-    const src = actx.createBufferSource(); src.buffer = buf;
-    const bp = actx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value = 1800; bp.Q.value = 0.8;
-    const g = actx.createGain(); g.gain.value = 0.07;
-    src.connect(bp); bp.connect(g); g.connect(dest);
-    src.start(tStart);
-  }
-  if (dr.hat.includes(stepInBar)){
-    const bufSize = Math.floor(actx.sampleRate * 0.04);
-    const buf = actx.createBuffer(1, bufSize, actx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i=0;i<bufSize;i++) data[i] = (Math.random()*2-1) * (1 - i/bufSize);
-    const src = actx.createBufferSource(); src.buffer = buf;
-    const hp = actx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value = 7000;
-    const g = actx.createGain(); g.gain.value = 0.03;
-    src.connect(hp); hp.connect(g); g.connect(dest);
-    src.start(tStart);
-  }
-}
-
-/* ==== ПЛЕЙЛИСТ + ПЛАНИРОВЩИК ==== */
-const MusicEngine = {
-  playing: false,
-  current: null,          /* текущий трек */
-  stepInBar: 0,
-  barInTrack: 0,
-  nextStepTime: 0,
-  lookahead: 0.12,        /* сек, планирование вперёд */
-  schedulerTimer: null,
-  playlist: [],           /* очередь треков (перемешана) */
-  history: [],            /* последние 6 id — чтобы не повторялись подряд */
-  battleActive: false,
-  normalTarget: 0.6,      /* нормальная громкость обычной музыки */
-  battleTarget: 0.7,      /* громкость боя */
-  fadeStep: 0.04,
-
-  init(){
-    /* очередь без повторов подряд */
-    this.playlist = TRACKS.filter(t => !t.battle).map(t => t.id);
-    this.shuffle();
-    this.history = [];
-  },
-  shuffle(){
-    for (let i=this.playlist.length-1;i>0;i--){
-      const j = Math.floor(Math.random()*(i+1));
-      [this.playlist[i], this.playlist[j]] = [this.playlist[j], this.playlist[i]];
-    }
-  },
-  pickNext(){
-    /* убираем из очереди, если трек уже в истории */
-    if (!this.playlist.length) {
-      this.playlist = TRACKS.filter(t => !t.battle).map(t => t.id);
-      this.shuffle();
-    }
-    let id = this.playlist.shift();
-    /* если совпал с последним — отложим в конец */
-    if (this.history[this.history.length-1] === id && this.playlist.length) {
-      const alt = this.playlist.shift();
-      this.playlist.push(id);
-      id = alt;
-    }
-    this.history.push(id);
-    if (this.history.length > 6) this.history.shift();
-    return trackById(id);
-  },
-  start(){
-    if (this.playing) return;
-    this.playing = true;
-    ensureAudio();
-    this.current = this.pickNext();
-    this.stepInBar = 0;
-    this.barInTrack = 0;
-    this.nextStepTime = actx.currentTime + 0.05;
-    /* плавно вводим музыку */
-    musicGain.gain.cancelScheduledValues(actx.currentTime);
-    musicGain.gain.setValueAtTime(musicGain.gain.value, actx.currentTime);
-    musicGain.gain.linearRampToValueAtTime(this.normalTarget, actx.currentTime + 1.5);
-    this.schedulerTimer = setInterval(()=>this.tick(), 25);
-  },
-  stop(){
-    this.playing = false;
-    if (this.schedulerTimer){ clearInterval(this.schedulerTimer); this.schedulerTimer = null; }
-    if (musicGain) {
-      musicGain.gain.cancelScheduledValues(actx.currentTime);
-      musicGain.gain.linearRampToValueAtTime(0.0001, actx.currentTime + 0.4);
-    }
-    if (battleGain) {
-      battleGain.gain.cancelScheduledValues(actx.currentTime);
-      battleGain.gain.linearRampToValueAtTime(0.0001, actx.currentTime + 0.4);
-    }
-  },
-  tick(){
-    if (!this.playing || !actx) return;
-    while (this.nextStepTime < actx.currentTime + this.lookahead) {
-      const track = this.current;
-      const dur = stepDur(track.tempo);
-      const dest = track.battle ? battleGain : musicGain;
-      playStep(track, this.stepInBar, this.barInTrack, this.nextStepTime, dest);
-      this.stepInBar++;
-      if (this.stepInBar >= 16){
-        this.stepInBar = 0;
-        this.barInTrack++;
-        if (this.barInTrack >= track.bars){
-          /* трек закончился */
-          this.barInTrack = 0;
-          if (track.battle){
-            /* боевой трек просто зацикливается, пока ивент активен */
-          } else {
-            this.current = this.pickNext();
-          }
-        }
-      }
-      this.nextStepTime += dur;
-    }
-  },
-  /* ==== БОЕВОЙ РЕЖИМ ==== */
-  startBattle(){
-    if (this.battleActive) return;
-    this.battleActive = true;
-    ensureAudio();
-    if (!this.playing) this.start();
-    const battle = trackById('battle');
-    this.current = battle;
-    this.stepInBar = 0;
-    this.barInTrack = 0;
-    /* плавно приглушаем обычную музыку и вводим боевую */
-    musicGain.gain.cancelScheduledValues(actx.currentTime);
-    musicGain.gain.setValueAtTime(musicGain.gain.value, actx.currentTime);
-    musicGain.gain.linearRampToValueAtTime(this.normalTarget * 0.25, actx.currentTime + 0.4);
-    battleGain.gain.cancelScheduledValues(actx.currentTime);
-    battleGain.gain.setValueAtTime(battleGain.gain.value, actx.currentTime);
-    battleGain.gain.linearRampToValueAtTime(this.battleTarget, actx.currentTime + 0.4);
-  },
-  endBattle(){
-    if (!this.battleActive) return;
-    this.battleActive = false;
-    if (!this.playing) return;
-    /* возвращаем обычную музыку и уводим боевую */
-    musicGain.gain.cancelScheduledValues(actx.currentTime);
-    musicGain.gain.setValueAtTime(musicGain.gain.value, actx.currentTime);
-    musicGain.gain.linearRampToValueAtTime(this.normalTarget, actx.currentTime + 0.8);
-    battleGain.gain.cancelScheduledValues(actx.currentTime);
-    battleGain.gain.setValueAtTime(battleGain.gain.value, actx.currentTime);
-    battleGain.gain.linearRampToValueAtTime(0.0001, actx.currentTime + 0.8);
-    /* продолжим с нового трека */
-    setTimeout(()=>{
-      if (!this.battleActive && this.playing) {
-        this.current = this.pickNext();
-        this.stepInBar = 0;
-        this.barInTrack = 0;
-      }
-    }, 850);
-  }
-};
-MusicEngine.init();
-
-/* ==== КНОПКА МУЗЫКИ ==== */
 $('#toggleMusic').onclick = ()=>{
   state.musicEnabled = !state.musicEnabled;
   $('#toggleMusic').textContent = 'Музыка: ' + (state.musicEnabled ? 'ВКЛ' : 'ВЫКЛ');
   $('#toggleMusic').classList.toggle('off', !state.musicEnabled);
   if (state.musicEnabled) {
-    ensureAudio();
-    MusicEngine.start();
-  } else {
-    MusicEngine.stop();
-  }
+    ensureAudio(); MusicEngine.start();
+    if (activeEvent) MusicEngine.startBattle();
+  } else { MusicEngine.stop(); }
   save();
 };
 
-/* ==== ПЕРЕХВАТ ИВЕНТОВ: включаем боевой трек ==== */
-const _origStartEvent = startEvent;
-startEvent = function(){
-  _origStartEvent.apply(this, arguments);
-  if (state.musicEnabled) MusicEngine.startBattle();
-};
-const _origFinishEvent = finishEvent;
-finishEvent = function(won){
-  _origFinishEvent.apply(this, arguments);
-  if (state.musicEnabled) MusicEngine.endBattle();
-};
-
-/* ================= DEV ================= */
 $('#cheatClose').onclick=()=>$('#cheatOverlay').classList.remove('show');
 $('#cheatSouls').onclick=()=>{ const v=+($('#cheatInput').value||0); state.souls+=v; state.totalSoulsEarned+=v; renderCPS(); renderLists(); save(); };
 $('#cheatCores').onclick=()=>{ const v=+($('#cheatInput').value||0); state.cores+=v; state.coresEarned+=v; renderCPS(); save(); };
 $('#cheatPotatoes').onclick=()=>{ const v=+($('#cheatInput').value||0); state.count+=v; state.total+=v; state.totalAllTime+=v; renderAll(); renderLists(); save(); };
 $('#cheatUnlockAll').onclick=()=>{ state.ownedSkins=SKINS.map(s=>s.id); renderSkins(); renderCases(); checkAchievements(); save(); };
 $('#cheatEvent').onclick=()=>{ $('#cheatOverlay').classList.remove('show'); startEvent(); };
-/* ================= СБРОС: полный, с двойной аутентификацией ================= */
-/* ВНИМАНИЕ: reset = АБСОЛЮТНО ВЕСЬ прогресс в 0.
-   Перерождение (prestige) — отдельная механика, там души/ядра/скины сохраняются. */
 
 function fullWipe(){
-  /* Картошки и доход */
-  state.count = 0;
-  state.total = 0;
-  state.totalAllTime = 0;
-
-  /* Валюты */
-  state.souls = 0;
-  state.soulsSpent = 0;
-  state.cores = 0;
-  state.coresEarned = 0;
-  state.totalSoulsEarned = 0;
-
-  /* Апгрейды */
+  state.count = 0; state.total = 0; state.totalAllTime = 0;
+  state.souls = 0; state.soulsSpent = 0; state.cores = 0; state.coresEarned = 0; state.totalSoulsEarned = 0;
   state.items.forEach(i => i.owned = 0);
-
-  /* Навыки */
   state.skills.forEach(s => s.lvl = 0);
-
-  /* Престиж */
-  state.prestigeCount = 0;
-  state.prestigesToday = 0;
-
-  /* Скины: только дефолтный */
-  state.equippedSkin = 'default';
-  state.ownedSkins = ['default'];
-  state.skinFilter = 'all';
-  state.selectedCase = 'starter';
-
-  /* Кейсы */
-  state.casesOpened = 0;
-  state.casesToday = 0;
-
-  /* Дейлики и стрик */
+  state.prestigeCount = 0; state.prestigesToday = 0;
+  state.equippedSkin = 'default'; state.ownedSkins = ['default']; state.skinFilter = 'all'; state.selectedCase = 'starter';
+  state.casesOpened = 0; state.casesToday = 0;
   state.daily = {date:'', progress:0, done:false, claimed:false, defId:''};
-  state.dayKey = '';
-  state.streak = 0;
-  state.bestStreak = 0;
-  state.lastClaimDate = '';
-  state.dailiesDone = 0;
-
-  /* Достижения */
+  state.dayKey = ''; state.streak = 0; state.bestStreak = 0; state.lastClaimDate = ''; state.dailiesDone = 0;
   state.achievements = {};
-
-  /* Статистика */
-  state.totalClicks = 0;
-  state.clicksToday = 0;
-  state.earnedToday = 0;
-  state.buysToday = 0;
-  state.eventsToday = 0;
-  state.eventsWon = 0;
-  state.offlineCollected = 0;
-  state.playTimeSec = 0;
-  state.bestAuto = 0;
-  state.bestClick = 0;
-
-  /* Секреты */
+  state.totalClicks = 0; state.clicksToday = 0; state.earnedToday = 0; state.buysToday = 0; state.eventsToday = 0;
+  state.eventsWon = 0; state.offlineCollected = 0; state.playTimeSec = 0; state.bestAuto = 0; state.bestClick = 0;
   state.secrets = {
     eyeClicks:0, combo:[], lastClickTime:0, emptyClicks:0, devOpens:0,
     darkClicks:0, voidIdle:0, nightClicks:0, berserkerClicks:0, berserkerDone:false,
@@ -1809,22 +1539,14 @@ function fullWipe(){
     loreTap:0, gameResets: (+localStorage.getItem('potato_resets')||0) + 1,
     categoryClaimed:{elemental:false,pixel:false,planetary:false,mythic:false}
   };
-
-  /* Настройки (музыка) — оставляем как есть, это не прогресс */
 }
-
-/* --- Анимация применения полного вайпа --- */
 function applyFullWipe(){
   fullWipe();
   localStorage.setItem('potato_resets', String(state.secrets.gameResets));
-  /* принудительно возвращаем скин default */
   applySkin('default');
-  /* перерисовываем всё */
   renderAll(); renderLists(); renderSkins(); renderAch(); renderQuests(); renderLore(); renderCases();
   save();
 }
-
-/* --- Двойная аутентификация --- */
 function ensureResetAuthOverlay(){
   if ($('#resetAuthOverlay')) return;
   const ov = document.createElement('div');
@@ -1860,12 +1582,9 @@ function ensureResetAuthOverlay(){
     </div>`;
   document.body.appendChild(ov);
 
-  /* Шаг 1 */
   const input = $('#resetWordInput');
   const next = $('#resetAuthNext');
-  input.oninput = ()=>{
-    next.disabled = input.value.trim().toUpperCase() !== 'УДАЛИТЬ ВСЁ';
-  };
+  input.oninput = ()=>{ next.disabled = input.value.trim().toUpperCase() !== 'УДАЛИТЬ ВСЁ'; };
   next.onclick = ()=>{
     if (input.value.trim().toUpperCase() !== 'УДАЛИТЬ ВСЁ') return;
     $('#resetAuthStep1').style.display = 'none';
@@ -1876,7 +1595,6 @@ function ensureResetAuthOverlay(){
   $('#resetAuthCancel').onclick = ()=>ov.classList.remove('show');
   $('#resetAuthCancel2').onclick = ()=>ov.classList.remove('show');
 
-  /* Шаг 2 — hold 2с */
   const holdBtn = $('#resetHoldBtn');
   let holdTimer = null;
   const startHold = ()=>{
@@ -1899,13 +1617,11 @@ function ensureResetAuthOverlay(){
   holdBtn.addEventListener('pointerdown', startHold);
   ['pointerup','pointerleave','pointercancel'].forEach(ev=>holdBtn.addEventListener(ev, cancelHold));
 }
-
 let resetStep = 1;
 function openResetAuthOverlay(){
   ensureResetAuthOverlay();
   const ov = $('#resetAuthOverlay');
   ov.classList.add('show');
-  /* сброс состояния оверлея */
   $('#resetAuthStep1').style.display = 'flex';
   $('#resetAuthStep2').style.display = 'none';
   $('#resetAuthTitle').textContent = '⚠️ ПОЛНЫЙ СБРОС';
@@ -1917,24 +1633,18 @@ function openResetAuthOverlay(){
   $('#resetAuthNext').style.display = 'inline-block';
   setTimeout(()=>input.focus(), 50);
 }
-
 function resetAfterWipe(){
   applyFullWipe();
   banner('Весь прогресс удалён. Начинаем с нуля.', 5000);
   hapticNotify('success');
-  /* опционально — перезагрузка, чтобы гарантированно убрать ошмётки DOM */
   setTimeout(()=>{
     if (confirm('Перезагрузить страницу для чистого старта?')) {
-      /* принудительно чистим CloudStorage тоже */
       Storage.remove(SAVE_KEY).finally(()=>location.reload());
     }
   }, 900);
 }
-
-/* --- Кнопка «сброс»: долгое нажатие 1.5с → оверлей 2FA --- */
 let resetTimer = null;
 let resetHolding = false;
-
 $('#reset').addEventListener('pointerdown', ()=>{
   if (resetHolding) return;
   resetHolding = true;
@@ -1948,7 +1658,6 @@ $('#reset').addEventListener('pointerdown', ()=>{
     openResetAuthOverlay();
   }, 1500);
 });
-
 ['pointerup','pointerleave','pointercancel'].forEach(ev=>{
   $('#reset').addEventListener(ev, ()=>{
     if (!resetHolding) return;
@@ -1958,26 +1667,8 @@ $('#reset').addEventListener('pointerdown', ()=>{
     $('#reset').textContent = 'сброс';
   });
 });
-
-/* Убираем возможный старый onclick-обработчик */
 $('#reset').onclick = null;
 
-/* ================= OFFLINE ================= */
-function showOfflineModal(gain, sec) {
-  const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60);
-  const timeTxt = h>0 ? `${h}ч ${m}м` : `${m}м`;
-  $('#offlineText').textContent = `Пока тебя не было (${timeTxt}), картошка работала на 50% мощности:`;
-  $('#offlineGain').innerHTML = ICONS.potato + `<span>+${fmt(gain)}</span>`;
-  $('#offlineOverlay').classList.add('show');
-  $('#claimOffline').onclick = () => {
-    state.count += gain; state.total += gain; state.totalAllTime += gain;
-    state.offlineCollected++;
-    $('#offlineOverlay').classList.remove('show');
-    checkAchievements(); renderAll(); renderLists(); renderQuests(); save();
-  };
-}
-
-/* ================= SAVE / LOAD ================= */
 function serialize() {
   return JSON.stringify({
     version: VERSION,
@@ -2050,33 +1741,26 @@ async function load(){
   }
 }
 
-/* ================= BANNER ================= */
 function banner(txt, ms=4200){
   const b = $('#dialogBox'); if (!b) return;
   b.textContent = txt; b.classList.add('show');
   clearTimeout(banner.t); banner.t = setTimeout(()=>b.classList.remove('show'), ms);
 }
 
-/* ================= ИНИЦИАЛИЗАЦИЯ (БРОНЕБОЙНАЯ) ================= */
 (async () => {
-  // Принудительно убираем лоадер через 3 секунды, что бы ни случилось
   const failsafe = setTimeout(() => {
     const lo = $('#loadingOverlay');
     if (lo) lo.classList.remove('show');
   }, 3000);
 
   try {
-    // 1. Загрузка с защитой от зависания Telegram CloudStorage
     let raw = null;
     try {
       raw = await Promise.race([
         Storage.get(SAVE_KEY),
         new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500))
       ]);
-    } catch (e) {
-      console.warn('CloudStorage timeout, using localStorage');
-      raw = localStorage.getItem(SAVE_KEY);
-    }
+    } catch (e) { raw = localStorage.getItem(SAVE_KEY); }
 
     if (!raw) {
       try {
@@ -2089,7 +1773,6 @@ function banner(txt, ms=4200){
 
     refreshDaily();
 
-    // 2. Оффлайн прогресс
     const now = Date.now();
     const sec = Math.min(MAX_OFFLINE_SEC, Math.max(0, (now - state.lastSeen) / 1000));
     if (sec > 60) {
@@ -2098,11 +1781,9 @@ function banner(txt, ms=4200){
     }
     state.lastSeen = now;
 
-    // 3. Кнопка музыки
     $('#toggleMusic').textContent='Музыка: '+(state.musicEnabled?'ВКЛ':'ВЫКЛ');
     $('#toggleMusic').classList.toggle('off',!state.musicEnabled);
 
-    // 4. Секретные коллекции
     const allOwned = ids => ids.length && ids.every(id=>state.ownedSkins.includes(id));
     CATEGORY_BONUSES.forEach(cb => {
       const ids = SKINS.filter(s=>s.cat===cb.cat || (cb.cat==='mythic' && s.rarity==='mythic')).map(s=>s.id);
@@ -2116,25 +1797,21 @@ function banner(txt, ms=4200){
       }
     });
 
-    // 5. Первичный рендер
     applySkin(state.equippedSkin);
     renderAll(); renderLists(); renderSkins(); renderAch(); renderQuests(); renderLore();
 
-    // 6. Снимаем лоадер (успешный сценарий)
     clearTimeout(failsafe);
     $('#loadingOverlay').classList.remove('show');
 
-    // 7. Таймеры
     setInterval(()=>{ const inc=autoPower()/10; if(inc>0){ state.count+=inc; state.total+=inc; state.totalAllTime+=inc; state.earnedToday+=inc; renderCounter(); } }, 100);
     setInterval(()=>{ state.playTimeSec += 1; }, 1000);
-    setInterval(()=>{ updateDailyProgress(); if ($('#questsPanel')?.classList.contains('open')) renderQuests(); }, 2000);
+    setInterval(()=>{ updateDailyProgress(); if ($('#questsPanel').classList.contains('open')) renderQuests(); }, 2000);
     setInterval(save, 15000);
     setInterval(()=>{ refreshDaily(); }, 30000);
     setInterval(checkAchievements, 5000);
     window.addEventListener('beforeunload', ()=>{ state.lastSeen=Date.now(); save(); });
     document.addEventListener('visibilitychange', ()=>{ if (document.hidden) { state.lastSeen=Date.now(); save(); } });
 
-    // 8. Музыка после первого клика
     if (state.musicEnabled) {
       const startMusicOnce = () => {
         ensureAudio();
@@ -2147,13 +1824,26 @@ function banner(txt, ms=4200){
     }
 
   } catch (err) {
-    // Ловим ЛЮБУЮ ошибку инициализации и выпускаем игрока в игру (пусть даже кривую)
     console.error('Init error:', err);
     clearTimeout(failsafe);
     $('#loadingOverlay').classList.remove('show');
     banner('Ошибка загрузки: ' + err.message, 8000);
   }
 })();
+
+function showOfflineModal(gain, sec) {
+  const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60);
+  const timeTxt = h>0 ? `${h}ч ${m}м` : `${m}м`;
+  $('#offlineText').textContent = `Пока тебя не было (${timeTxt}), картошка работала на 50% мощности:`;
+  $('#offlineGain').innerHTML = ICONS.potato + `<span>+${fmt(gain)}</span>`;
+  $('#offlineOverlay').classList.add('show');
+  $('#claimOffline').onclick = () => {
+    state.count += gain; state.total += gain; state.totalAllTime += gain;
+    state.offlineCollected++;
+    $('#offlineOverlay').classList.remove('show');
+    checkAchievements(); renderAll(); renderLists(); renderQuests(); save();
+  };
+}
 </script>
 </body>
 </html>
