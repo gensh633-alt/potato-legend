@@ -1326,16 +1326,413 @@ function doPrestigeToCores() {
 $('#doPrestige').onclick = doPrestigeToSouls;
 $('#doPrestige2').onclick = doPrestigeToCores;
 
-/* ================= МУЗЫКА ================= */
-$('#toggleMusic').onclick=()=>{ state.musicEnabled=!state.musicEnabled; $('#toggleMusic').textContent='Музыка: '+(state.musicEnabled?'ВКЛ':'ВЫКЛ'); $('#toggleMusic').classList.toggle('off',!state.musicEnabled); save(); };
-setInterval(()=>{
-  if(!state.musicEnabled) return;
-  try{ ensureAudio(); const t=actx.currentTime, idx=mStep%8;
-    const o=actx.createOscillator(),g=actx.createGain(); o.type=retro?'square':'triangle'; o.frequency.setValueAtTime(BASS[idx],t); g.gain.setValueAtTime(.03,t); g.gain.exponentialRampToValueAtTime(.0008,t+.44); o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t+.45);
-    if(mStep%2===0){ const a=actx.createOscillator(),ag=actx.createGain(); a.type=retro?'square':'sine'; a.frequency.setValueAtTime(ARP[(mStep/2)%8],t); ag.gain.setValueAtTime(.018,t); ag.gain.exponentialRampToValueAtTime(.0005,t+.5); a.connect(ag); ag.connect(actx.destination); a.start(t); a.stop(t+.52); }
-    mStep++;
+/* ================= МУЗЫКА v2 (процедурная, плейлист + боевой трек) ================= */
+
+let actx = null;
+let masterGain = null;
+let musicGain = null;     /* общая громкость музыки */
+let musicDuck = 1;        /* 1 = норма, 0.25 = приглушено под бой */
+let battleGain = null;    /* громкость боевого слоя */
+let retro = false;        /* 8-битный режим (включается коллекцией pixel) */
+
+function ensureAudio(){
+  if (actx) {
+    if (actx.state === 'suspended') actx.resume();
+    return;
+  }
+  actx = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = actx.createGain(); masterGain.gain.value = 0.9; masterGain.connect(actx.destination);
+  musicGain = actx.createGain(); musicGain.gain.value = 0.0; musicGain.connect(masterGain);
+  battleGain = actx.createGain(); battleGain.gain.value = 0.0; battleGain.connect(masterGain);
+}
+
+function beep(f,d,tp='sine',v=.06, dest){
+  try{
+    ensureAudio();
+    const o=actx.createOscillator(), g=actx.createGain();
+    o.type=tp; o.frequency.value=f;
+    g.gain.value=v;
+    g.gain.exponentialRampToValueAtTime(.0001, actx.currentTime + d);
+    o.connect(g); g.connect(dest || masterGain);
+    o.start(); o.stop(actx.currentTime + d + .02);
   }catch(e){}
-}, 460);
+}
+
+/* ==== НОТЫ ==== */
+const NOTE = (()=>{
+  const names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const map = {};
+  for (let oct=0; oct<=8; oct++){
+    names.forEach((n,i)=>{ map[n+oct] = 440 * Math.pow(2, (oct*12 + i - 57) / 12); });
+  }
+  return map;
+})();
+const n = (name)=>NOTE[name] || 440;
+
+/* ==== ОПИСАНИЯ ТРЕКОВ ====
+   bars — длина в тактах, beatsPerBar — 4
+   tempo — BPM, root — тональность (для арпа)
+   bass / arp / lead / drums — паттерны по шагам (16 шагов = 1 такт)
+   где '·' — пауза, '-' — продление предыдущей ноты
+*/
+const TRACKS = [
+  {
+    id:'meadow', name:'Луговой мотив', tempo:96, bars:8,
+    bass:'A2 - A2 - F2 - G2 - A2 - A2 - C3 - G2 -',
+    arp: 'A4 · C5 · E5 · C5 · A4 · C5 · E5 · G5 ·',
+    lead:'· · · · E5 - D5 - C5 - · · · · A4 - G4 - ·',
+    drums:{kick:[0,6,8,14], snare:[4,12], hat:[0,2,4,6,8,10,12,14]},
+    synth:'sine', chord:['A3','C4','E4']
+  },
+  {
+    id:'night', name:'Ночная грядка', tempo:82, bars:8,
+    bass:'D2 - - - D2 - - - Bb1 - - - Bb1 - - -',
+    arp: 'D4 · F4 · A4 · F4 · D4 · F4 · A4 · C5 ·',
+    lead:'· · D5 - · · C5 - · · A4 - · · F4 - ·',
+    drums:{kick:[0,8], snare:[12], hat:[2,6,10,14]},
+    synth:'triangle', chord:['D3','F3','A3']
+  },
+  {
+    id:'sunrise', name:'Восход на ферме', tempo:110, bars:8,
+    bass:'C3 - C3 - G2 - G2 - A2 - A2 - F2 - F2 -',
+    arp: 'C4 E4 G4 C5 G4 E4 C4 G3 · E4 G4 C5 E5 C5 G4 E4',
+    lead:'· G4 - A4 - · · E4 - · D4 - C4 - · · ·',
+    drums:{kick:[0,4,8,12], snare:[4,12], hat:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]},
+    synth:'triangle', chord:['C4','E4','G4']
+  },
+  {
+    id:'storm', name:'Гроза', tempo:132, bars:8,
+    bass:'E2 - E2 - G2 - F#2 - E2 - E2 - B1 - D2 -',
+    arp: 'E4 · G4 · B4 · G4 · E4 · G4 · B4 · D5 ·',
+    lead:'B4 - · B4 - A4 - · G4 - · · E4 - · · ·',
+    drums:{kick:[0,3,6,9,12,15], snare:[4,12], hat:[0,2,4,6,8,10,12,14]},
+    synth:'sawtooth', chord:['E3','G3','B3']
+  },
+  {
+    id:'cosmos', name:'Космос', tempo:100, bars:8,
+    bass:'F2 - - - C2 - - - D2 - - - A1 - - -',
+    arp: 'F4 · A4 · C5 · A4 · F4 · A4 · C5 · E5 ·',
+    lead:'· · · A4 - - C5 - · · · A4 - F4 - ·',
+    drums:{kick:[0,8], snare:[4,12], hat:[0,4,8,12]},
+    synth:'sine', chord:['F3','A3','C4']
+  },
+  {
+    id:'pixel', name:'8-битный', tempo:120, bars:8,
+    bass:'G2 G2 - G2 G2 - G2 A2 - A2 A2 - A2 F2 -',
+    arp: 'G4 G4 · G4 G4 · G4 A4 · A4 A4 · A4 F4 ·',
+    lead:'· · G5 - F#5 - E5 - · · D5 - C5 - · · ·',
+    drums:{kick:[0,4,8,12], snare:[4,12], hat:[0,2,4,6,8,10,12,14]},
+    synth:'square', chord:['G3','B3','D4']
+  },
+  {
+    id:'battle', name:'Нашествие', tempo:150, bars:4, battle:true,
+    bass:'E2 E2 E2 E2 F2 F2 F2 F2 G2 G2 G2 G2 B1 B1 B1 B1',
+    arp: 'E4 · B4 · E5 · B4 · E4 · G4 · B4 · E5 ·',
+    lead:'· · E5 - D5 - B4 - · · G4 - A4 - B4 - ·',
+    drums:{kick:[0,2,4,6,8,10,12,14], snare:[4,12], hat:[1,3,5,7,9,11,13,15]},
+    synth:'sawtooth', chord:['E3','G3','B3']
+  }
+];
+
+const trackById = id => TRACKS.find(t => t.id === id);
+
+/* ==== РАЗБОР ПАТТЕРНОВ ==== */
+/* '·' = пауза, '-' = продление. Возвращает массив {step, note, len} */
+function parsePattern(str){
+  const tokens = str.trim().split(/\s+/);
+  const events = [];
+  let lastNote = null, lastStep = -1;
+  tokens.forEach((tok, i)=>{
+    if (tok === '·' || tok === '.') { lastNote = null; return; }
+    if (tok === '-') { if (lastNote && lastStep >= 0) events[events.length-1].len++; return; }
+    lastNote = tok; lastStep = i;
+    events.push({ step: i, note: tok, len: 1 });
+  });
+  return events;
+}
+const parsedCache = new Map();
+function getParsed(track){
+  if (parsedCache.has(track.id)) return parsedCache.get(track.id);
+  const p = {
+    bass: parsePattern(track.bass),
+    arp:  parsePattern(track.arp),
+    lead: parsePattern(track.lead)
+  };
+  parsedCache.set(track.id, p);
+  return p;
+}
+
+/* ==== ТАЙМЛАЙН: 16 шагов в такте, 4/4 ==== */
+const STEP_BEATS = 0.25; /* 16-я */
+
+function stepDur(tempo){ return 60 / tempo / 4; } /* длительность 16-го шага в секундах */
+
+/* Воспроизведение одного шага для трека */
+function playStep(track, stepInBar, bar, tStart, dest){
+  const dur = stepDur(track.tempo);
+  const parsed = getParsed(track);
+  const absStep = ((bar * 16) + stepInBar);
+
+  /* --- БАС --- */
+  const bassEv = parsed.bass.find(e => e.step === stepInBar);
+  if (bassEv){
+    const durB = bassEv.len * dur * 0.95;
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = retro ? 'square' : (track.synth === 'sine' ? 'triangle' : 'sawtooth');
+    o.frequency.value = n(bassEv.note) / 2;
+    g.gain.setValueAtTime(0.0001, tStart);
+    g.gain.exponentialRampToValueAtTime(0.09, tStart + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, tStart + durB);
+    o.connect(g); g.connect(dest);
+    o.start(tStart); o.stop(tStart + durB + 0.02);
+  }
+
+  /* --- АРП --- */
+  const arpEv = parsed.arp.find(e => e.step === stepInBar);
+  if (arpEv){
+    const durA = arpEv.len * dur * 0.85;
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = retro ? 'square' : (track.synth === 'sawtooth' ? 'triangle' : 'sine');
+    o.frequency.value = n(arpEv.note);
+    g.gain.setValueAtTime(0.0001, tStart);
+    g.gain.exponentialRampToValueAtTime(0.045, tStart + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, tStart + durA);
+    o.connect(g); g.connect(dest);
+    o.start(tStart); o.stop(tStart + durA + 0.02);
+  }
+
+  /* --- ЛИД --- */
+  const leadEv = parsed.lead.find(e => e.step === stepInBar);
+  if (leadEv){
+    const durL = leadEv.len * dur;
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = retro ? 'square' : (track.synth === 'sawtooth' ? 'sawtooth' : 'triangle');
+    o.frequency.value = n(leadEv.note);
+    g.gain.setValueAtTime(0.0001, tStart);
+    g.gain.exponentialRampToValueAtTime(0.05, tStart + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, tStart + durL);
+    o.connect(g); g.connect(dest);
+    o.start(tStart); o.stop(tStart + durL + 0.02);
+    /* эхо-подкладка */
+    if (!retro && track.synth !== 'square'){
+      const o2 = actx.createOscillator(), g2 = actx.createGain();
+      o2.type = 'sine';
+      o2.frequency.value = n(leadEv.note) * 2;
+      g2.gain.setValueAtTime(0.0001, tStart + durL*0.5);
+      g2.gain.exponentialRampToValueAtTime(0.02, tStart + durL*0.55);
+      g2.gain.exponentialRampToValueAtTime(0.0001, tStart + durL*1.2);
+      o2.connect(g2); g2.connect(dest);
+      o2.start(tStart + durL*0.5); o2.stop(tStart + durL*1.25);
+    }
+  }
+
+  /* --- БАРАБАНЫ --- */
+  const dr = track.drums;
+  const mk = (type, freq, dur, vol)=>{
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, tStart);
+    g.gain.exponentialRampToValueAtTime(0.0001, tStart + dur);
+    o.connect(g); g.connect(dest);
+    o.start(tStart); o.stop(tStart + dur + 0.02);
+  };
+  if (dr.kick.includes(stepInBar)){
+    /* kick: быстрый спад синуса */
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(120, tStart);
+    o.frequency.exponentialRampToValueAtTime(45, tStart + 0.12);
+    g.gain.setValueAtTime(0.18, tStart);
+    g.gain.exponentialRampToValueAtTime(0.0001, tStart + 0.16);
+    o.connect(g); g.connect(dest);
+    o.start(tStart); o.stop(tStart + 0.2);
+  }
+  if (dr.snare.includes(stepInBar)){
+    /* snare: шум через bandpass */
+    const bufSize = Math.floor(actx.sampleRate * 0.15);
+    const buf = actx.createBuffer(1, bufSize, actx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i=0;i<bufSize;i++) data[i] = (Math.random()*2-1) * (1 - i/bufSize);
+    const src = actx.createBufferSource(); src.buffer = buf;
+    const bp = actx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value = 1800; bp.Q.value = 0.8;
+    const g = actx.createGain(); g.gain.value = 0.07;
+    src.connect(bp); bp.connect(g); g.connect(dest);
+    src.start(tStart);
+  }
+  if (dr.hat.includes(stepInBar)){
+    const bufSize = Math.floor(actx.sampleRate * 0.04);
+    const buf = actx.createBuffer(1, bufSize, actx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i=0;i<bufSize;i++) data[i] = (Math.random()*2-1) * (1 - i/bufSize);
+    const src = actx.createBufferSource(); src.buffer = buf;
+    const hp = actx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value = 7000;
+    const g = actx.createGain(); g.gain.value = 0.03;
+    src.connect(hp); hp.connect(g); g.connect(dest);
+    src.start(tStart);
+  }
+}
+
+/* ==== ПЛЕЙЛИСТ + ПЛАНИРОВЩИК ==== */
+const MusicEngine = {
+  playing: false,
+  current: null,          /* текущий трек */
+  stepInBar: 0,
+  barInTrack: 0,
+  nextStepTime: 0,
+  lookahead: 0.12,        /* сек, планирование вперёд */
+  schedulerTimer: null,
+  playlist: [],           /* очередь треков (перемешана) */
+  history: [],            /* последние 6 id — чтобы не повторялись подряд */
+  battleActive: false,
+  normalTarget: 0.6,      /* нормальная громкость обычной музыки */
+  battleTarget: 0.7,      /* громкость боя */
+  fadeStep: 0.04,
+
+  init(){
+    /* очередь без повторов подряд */
+    this.playlist = TRACKS.filter(t => !t.battle).map(t => t.id);
+    this.shuffle();
+    this.history = [];
+  },
+  shuffle(){
+    for (let i=this.playlist.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [this.playlist[i], this.playlist[j]] = [this.playlist[j], this.playlist[i]];
+    }
+  },
+  pickNext(){
+    /* убираем из очереди, если трек уже в истории */
+    if (!this.playlist.length) {
+      this.playlist = TRACKS.filter(t => !t.battle).map(t => t.id);
+      this.shuffle();
+    }
+    let id = this.playlist.shift();
+    /* если совпал с последним — отложим в конец */
+    if (this.history[this.history.length-1] === id && this.playlist.length) {
+      const alt = this.playlist.shift();
+      this.playlist.push(id);
+      id = alt;
+    }
+    this.history.push(id);
+    if (this.history.length > 6) this.history.shift();
+    return trackById(id);
+  },
+  start(){
+    if (this.playing) return;
+    this.playing = true;
+    ensureAudio();
+    this.current = this.pickNext();
+    this.stepInBar = 0;
+    this.barInTrack = 0;
+    this.nextStepTime = actx.currentTime + 0.05;
+    /* плавно вводим музыку */
+    musicGain.gain.cancelScheduledValues(actx.currentTime);
+    musicGain.gain.setValueAtTime(musicGain.gain.value, actx.currentTime);
+    musicGain.gain.linearRampToValueAtTime(this.normalTarget, actx.currentTime + 1.5);
+    this.schedulerTimer = setInterval(()=>this.tick(), 25);
+  },
+  stop(){
+    this.playing = false;
+    if (this.schedulerTimer){ clearInterval(this.schedulerTimer); this.schedulerTimer = null; }
+    if (musicGain) {
+      musicGain.gain.cancelScheduledValues(actx.currentTime);
+      musicGain.gain.linearRampToValueAtTime(0.0001, actx.currentTime + 0.4);
+    }
+    if (battleGain) {
+      battleGain.gain.cancelScheduledValues(actx.currentTime);
+      battleGain.gain.linearRampToValueAtTime(0.0001, actx.currentTime + 0.4);
+    }
+  },
+  tick(){
+    if (!this.playing || !actx) return;
+    while (this.nextStepTime < actx.currentTime + this.lookahead) {
+      const track = this.current;
+      const dur = stepDur(track.tempo);
+      const dest = track.battle ? battleGain : musicGain;
+      playStep(track, this.stepInBar, this.barInTrack, this.nextStepTime, dest);
+      this.stepInBar++;
+      if (this.stepInBar >= 16){
+        this.stepInBar = 0;
+        this.barInTrack++;
+        if (this.barInTrack >= track.bars){
+          /* трек закончился */
+          this.barInTrack = 0;
+          if (track.battle){
+            /* боевой трек просто зацикливается, пока ивент активен */
+          } else {
+            this.current = this.pickNext();
+          }
+        }
+      }
+      this.nextStepTime += dur;
+    }
+  },
+  /* ==== БОЕВОЙ РЕЖИМ ==== */
+  startBattle(){
+    if (this.battleActive) return;
+    this.battleActive = true;
+    ensureAudio();
+    if (!this.playing) this.start();
+    const battle = trackById('battle');
+    this.current = battle;
+    this.stepInBar = 0;
+    this.barInTrack = 0;
+    /* плавно приглушаем обычную музыку и вводим боевую */
+    musicGain.gain.cancelScheduledValues(actx.currentTime);
+    musicGain.gain.setValueAtTime(musicGain.gain.value, actx.currentTime);
+    musicGain.gain.linearRampToValueAtTime(this.normalTarget * 0.25, actx.currentTime + 0.4);
+    battleGain.gain.cancelScheduledValues(actx.currentTime);
+    battleGain.gain.setValueAtTime(battleGain.gain.value, actx.currentTime);
+    battleGain.gain.linearRampToValueAtTime(this.battleTarget, actx.currentTime + 0.4);
+  },
+  endBattle(){
+    if (!this.battleActive) return;
+    this.battleActive = false;
+    if (!this.playing) return;
+    /* возвращаем обычную музыку и уводим боевую */
+    musicGain.gain.cancelScheduledValues(actx.currentTime);
+    musicGain.gain.setValueAtTime(musicGain.gain.value, actx.currentTime);
+    musicGain.gain.linearRampToValueAtTime(this.normalTarget, actx.currentTime + 0.8);
+    battleGain.gain.cancelScheduledValues(actx.currentTime);
+    battleGain.gain.setValueAtTime(battleGain.gain.value, actx.currentTime);
+    battleGain.gain.linearRampToValueAtTime(0.0001, actx.currentTime + 0.8);
+    /* продолжим с нового трека */
+    setTimeout(()=>{
+      if (!this.battleActive && this.playing) {
+        this.current = this.pickNext();
+        this.stepInBar = 0;
+        this.barInTrack = 0;
+      }
+    }, 850);
+  }
+};
+MusicEngine.init();
+
+/* ==== КНОПКА МУЗЫКИ ==== */
+$('#toggleMusic').onclick = ()=>{
+  state.musicEnabled = !state.musicEnabled;
+  $('#toggleMusic').textContent = 'Музыка: ' + (state.musicEnabled ? 'ВКЛ' : 'ВЫКЛ');
+  $('#toggleMusic').classList.toggle('off', !state.musicEnabled);
+  if (state.musicEnabled) {
+    ensureAudio();
+    MusicEngine.start();
+  } else {
+    MusicEngine.stop();
+  }
+  save();
+};
+
+/* ==== ПЕРЕХВАТ ИВЕНТОВ: включаем боевой трек ==== */
+const _origStartEvent = startEvent;
+startEvent = function(){
+  _origStartEvent.apply(this, arguments);
+  if (state.musicEnabled) MusicEngine.startBattle();
+};
+const _origFinishEvent = finishEvent;
+finishEvent = function(won){
+  _origFinishEvent.apply(this, arguments);
+  if (state.musicEnabled) MusicEngine.endBattle();
+};
 
 /* ================= DEV ================= */
 $('#cheatClose').onclick=()=>$('#cheatOverlay').classList.remove('show');
