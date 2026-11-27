@@ -643,13 +643,27 @@ const state = {
     {id:'time_machine',name:'Машина времени',desc:'+500K/сек',base:1e15,type:'auto',value:550000,owned:0,max:9999},
     {id:'god_potato',name:'Божественная картошка',desc:'+5M/сек',base:1e18,type:'auto',value:10000000,owned:0,max:9999}
 ],
-  skills:[
-    {id:'s_click',name:'Сильный клик',desc:'+10% к клику за ур.',max:5,cost:[2,3,5,8,12],lvl:0},
-    {id:'s_auto',name:'Автоматика',desc:'+10% к авто за ур.',max:5,cost:[2,3,5,8,12],lvl:0},
-    {id:'s_start',name:'Стартовый капитал',desc:'+5000 картошек при сбросе',max:3,cost:[3,6,10],lvl:0},
-    {id:'s_cheap',name:'Скидочка',desc:'-5% к цене апгрейдов',max:5,cost:[3,5,8,12,20],lvl:0},
-    {id:'s_soul',name:'Опытная душа',desc:'+15% душ при сбросе',max:5,cost:[5,8,12,20,35],lvl:0}
-],
+    skills:[
+    // === ЛЕВАЯ ВЕТКА (КЛИК) ===
+    {id:'s_click',name:'Сильный клик',desc:'+10% к клику за ур.',max:5,cost:[2,3,5,8,12],lvl:0,type:'click'},
+    {id:'p_click1',name:'Точность',desc:'+5% к клику',max:1,cost:[4],lvl:0,type:'click'},
+    {id:'p_click2',name:'Мастерство',desc:'+5% к клику',max:1,cost:[8],lvl:0,type:'click'},
+    {id:'s_cheap',name:'Скидочка',desc:'-5% к цене апгрейдов',max:5,cost:[3,5,8,12,20],lvl:0,type:'click'},
+    {id:'p_click3',name:'Разрушитель',desc:'+10% к клику',max:1,cost:[15],lvl:0,type:'click'},
+
+    // === ПРАВАЯ ВЕТКА (АВТО) ===
+    {id:'s_auto',name:'Автоматика',desc:'+10% к авто за ур.',max:5,cost:[2,3,5,8,12],lvl:0,type:'auto'},
+    {id:'p_auto1',name:'Конвейер',desc:'+5% к авто',max:1,cost:[4],lvl:0,type:'auto'},
+    {id:'p_auto2',name:'Оптимизация',desc:'+5% к авто',max:1,cost:[8],lvl:0,type:'auto'},
+    {id:'s_start',name:'Стартовый капитал',desc:'+5000 картошек при сбросе',max:3,cost:[3,6,10],lvl:0,type:'auto'},
+    {id:'p_auto3',name:'Синергия',desc:'+10% к авто',max:1,cost:[15],lvl:0,type:'auto'},
+
+    // === ЦЕНТРАЛЬНАЯ ВЕТКА (ДУШИ) ===
+    {id:'s_soul',name:'Опытная душа',desc:'+15% душ при сбросе',max:5,cost:[5,8,12,20,35],lvl:0,type:'soul'},
+    {id:'p_global1',name:'Воля',desc:'+2% ко всему',max:1,cost:[10],lvl:0,type:'soul'},
+    {id:'s_soul2',name:'Резонанс душ',desc:'+15% душ при сбросе',max:3,cost:[15,25,40],lvl:0,type:'soul'},
+    {id:'p_global2',name:'Абсолют',desc:'+3% ко всему',max:1,cost:[25],lvl:0,type:'soul'}
+  ],
   daily:{date:'',progress:0,done:false,claimed:false,defId:''},
   streak:0,bestStreak:0,lastClaimDate:'',dailiesDone:0,
   achievements:{},
@@ -717,10 +731,18 @@ function clickPower() {
   const ab = achBonuses(), cb = collectionBonuses(), cr = coreBonuses();
   let base = 1 + state.items.filter(i=>i.type==='click').reduce((a,b)=>a+b.value*b.owned*tierMul(b.owned),0);
   base *= (1 + skLvl('s_click')*.1);
+  // Учет пассивов
+  if (state.skills.find(s=>s.id==='p_click1')?.lvl) base *= 1.05;
+  if (state.skills.find(s=>s.id==='p_click2')?.lvl) base *= 1.05;
+  if (state.skills.find(s=>s.id==='p_click3')?.lvl) base *= 1.10;
+  
   base *= (1 + (eqSkin().clickBonus||0));
   base *= (e.clickMul || 1);
   base *= ab.clickMul * cb.clickMul * cr.clickMul;
   base *= (e.globalMul || 1) * ab.globalMul * cb.globalMul;
+  // Глобальные пассивы
+  if (state.skills.find(s=>s.id==='p_global1')?.lvl) base *= 1.02;
+  if (state.skills.find(s=>s.id==='p_global2')?.lvl) base *= 1.03;
   return base;
 }
 function autoPower() {
@@ -728,12 +750,20 @@ function autoPower() {
   const ab = achBonuses(), cb = collectionBonuses(), cr = coreBonuses();
   let base = state.items.filter(i=>i.type==='auto').reduce((a,b)=>a+b.value*b.owned*tierMul(b.owned),0);
   base *= (1 + skLvl('s_auto')*.1);
+  // Учет пассивов
+  if (state.skills.find(s=>s.id==='p_auto1')?.lvl) base *= 1.05;
+  if (state.skills.find(s=>s.id==='p_auto2')?.lvl) base *= 1.05;
+  if (state.skills.find(s=>s.id==='p_auto3')?.lvl) base *= 1.10;
+
   base *= (1 + (eqSkin().autoBonus||0));
   base *= (e.autoMul || 1);
   if (e.incomePerCase) base *= (1 + Math.min(e.incomePerCaseCap, state.casesOpened * e.incomePerCase));
   if (e.autoPerEvent)  base *= (1 + Math.min(e.autoPerEventCap, state.eventsWon * e.autoPerEvent));
   base *= ab.autoMul * cb.autoMul * cr.autoMul;
   base *= (e.globalMul || 1) * ab.globalMul * cb.globalMul;
+  // Глобальные пассивы
+  if (state.skills.find(s=>s.id==='p_global1')?.lvl) base *= 1.02;
+  if (state.skills.find(s=>s.id==='p_global2')?.lvl) base *= 1.03;
   return base;
 }
 function itemPrice(it) {
@@ -743,8 +773,12 @@ function itemPrice(it) {
 const soulsAvail = () => state.souls - state.soulsSpent;
 function soulsGain() {
   const e = eqEffect(), ab = achBonuses(), cb = collectionBonuses();
-
   let g = Math.floor(Math.pow(state.totalAllTime / 1e6, 0.4) * (1 + skLvl('s_soul')*.15));
+  // Учет s_soul2
+  if (state.skills.find(s=>s.id==='s_soul2')) {
+    const s2 = state.skills.find(s=>s.id==='s_soul2');
+    g *= (1 + s2.lvl * 0.15);
+  }
   g *= (e.soulsMul || 1) * ab.soulsMul * cb.soulsMul;
   g *= (1 + state.prestigeCount * 0.05);
   return Math.floor(g);
@@ -1189,19 +1223,128 @@ function renderLists(){
     $('#items').appendChild(d);
   });
     // ===== НОВОЕ ДЕРЕВО НАВЫКОВ (ВАРИАНТ Б) =====
+    // ===== ОГРОМНОЕ ДЕРЕВО НАВЫКОВ =====
   const skillTree = $('#skillTree');
   if (skillTree) {
     const av = soulsAvail();
     $('#skillSoulsAvail').textContent = av;
     
-    // Координаты узлов в процентах (x, y) и зависимости (req)
+    // Координаты (x, y) и зависимости
     const NODES = {
-      's_click': { x: 25, y: 80, req: null, icon: '⚔️' },
-      's_cheap': { x: 15, y: 45, req: 's_click', icon: '💰' },
-      's_auto':  { x: 75, y: 80, req: null, icon: '🤖' },
-      's_start': { x: 85, y: 45, req: 's_auto', icon: '🚀' },
-      's_soul':  { x: 50, y: 20, req: null, icon: '✨' }
+      // Левая ветка
+      's_click':  { x: 25, y: 85, req: null, icon: '⚔️', color: '#f87171' },
+      'p_click1': { x: 20, y: 65, req: 's_click', icon: '🎯', color: '#f87171' },
+      'p_click2': { x: 15, y: 45, req: 'p_click1', icon: '🗡️', color: '#f87171' },
+      's_cheap':  { x: 25, y: 25, req: 'p_click2', icon: '💰', color: '#f87171' },
+      'p_click3': { x: 40, y: 15, req: 's_cheap', icon: '🔥', color: '#f87171' },
+
+      // Правая ветка
+      's_auto':   { x: 75, y: 85, req: null, icon: '🤖', color: '#60a5fa' },
+      'p_auto1':  { x: 80, y: 65, req: 's_auto', icon: '⚙️', color: '#60a5fa' },
+      'p_auto2':  { x: 85, y: 45, req: 'p_auto1', icon: '📈', color: '#60a5fa' },
+      's_start':  { x: 75, y: 25, req: 'p_auto2', icon: '🚀', color: '#60a5fa' },
+      'p_auto3':  { x: 60, y: 15, req: 's_start', icon: '⚡', color: '#60a5fa' },
+
+      // Центр
+      's_soul':   { x: 50, y: 85, req: null, icon: '✨', color: '#fbbf24' },
+      'p_global1':{ x: 50, y: 60, req: 's_soul', icon: '💫', color: '#fbbf24' },
+      's_soul2':  { x: 50, y: 40, req: 'p_global1', icon: '🌟', color: '#fbbf24' },
+      'p_global2':{ x: 50, y: 20, req: 's_soul2', icon: '👑', color: '#fbbf24' }
     };
+
+    // Линии
+    let linesHTML = '';
+    Object.entries(NODES).forEach(([id, node]) => {
+      if (node.req) {
+        const reqNode = NODES[node.req];
+        const reqSkill = state.skills.find(s=>s.id===node.req);
+        const isUnlocked = reqSkill && reqSkill.lvl > 0;
+        linesHTML += `<line x1="${reqNode.x}" y1="${reqNode.y}" x2="${node.x}" y2="${node.y}" stroke="${isUnlocked ? node.color : '#2a2a44'}" stroke-width="1.5" stroke-dasharray="${isUnlocked ? 'none' : '2'}" vector-effect="non-scaling-stroke" />`;
+      }
+    });
+    $('#skillLines').setAttribute('viewBox', '0 0 100 100');
+    $('#skillLines').setAttribute('preserveAspectRatio', 'none');
+    $('#skillLines').innerHTML = linesHTML;
+
+    // Узлы
+    const nodesContainer = $('#skillNodes');
+    nodesContainer.innerHTML = '';
+    
+    state.skills.forEach(sk => {
+      const conf = NODES[sk.id];
+      if (!conf) return;
+      
+      const max = sk.lvl >= sk.max;
+      const reqSk = conf.req ? state.skills.find(s=>s.id===conf.req) : null;
+      const isLocked = reqSk && reqSk.lvl === 0;
+      const c = max ? 0 : sk.cost[sk.lvl];
+      const canBuy = !max && !isLocked && av >= c;
+      
+      const el = document.createElement('div');
+      el.style.position = 'absolute';
+      el.style.left = conf.x + '%';
+      el.style.top = conf.y + '%';
+      el.style.transform = 'translate(-50%, -50%)';
+      
+      // Маленькие узлы для пассивов, большие для основных
+      const size = sk.id.startsWith('p_') ? '40px' : '56px';
+      el.style.width = size;
+      el.style.height = size;
+      el.style.borderRadius = '50%';
+      el.style.display = 'flex';
+      el.style.flexDirection = 'column';
+      el.style.alignItems = 'center';
+      el.style.justifyContent = 'center';
+      el.style.cursor = canBuy ? 'pointer' : 'not-allowed';
+      el.style.transition = 'all 0.2s';
+      el.style.zIndex = 10;
+      
+      if (max) {
+        el.style.background = '#1a2a1a';
+        el.style.border = `2px solid ${conf.color}`;
+        el.style.boxShadow = `0 0 15px ${conf.color}66`;
+        el.style.color = conf.color;
+      } else if (isLocked) {
+        el.style.background = '#141423';
+        el.style.border = '2px solid #2a2a44';
+        el.style.color = '#5a5a7a';
+        el.style.opacity = '0.6';
+      } else if (canBuy) {
+        el.style.background = '#26263f';
+        el.style.border = `2px solid ${conf.color}`;
+        el.style.boxShadow = `0 0 15px ${conf.color}66`;
+        el.style.color = conf.color;
+      } else {
+        el.style.background = '#1d1d30';
+        el.style.border = '2px solid #2a2a44';
+        el.style.color = '#8a8aa3';
+      }
+
+      el.innerHTML = `
+        <div style="font-size:${sk.id.startsWith('p_')?'0.9rem':'1.2rem'}; margin-bottom:1px">${conf.icon}</div>
+        <div style="font-size:${sk.id.startsWith('p_')?'0.5rem':'0.6rem'}; font-weight:800; text-align:center; line-height:1">${sk.lvl}/${sk.max}</div>
+      `;
+      
+      el.title = `${sk.name}\n${sk.desc}\n${max ? 'MAX' : (isLocked ? 'Требуется: ' + reqSk.name : 'Цена: ' + c + ' душ')}`;
+      
+      if (canBuy) {
+        el.onclick = () => {
+          if (soulsAvail() >= c) {
+            state.soulsSpent += c;
+            sk.lvl++;
+            beep(1320,.14,'triangle',.06);
+            haptic();
+            checkAchievements();
+            renderAll();
+            renderLists();
+            save();
+          }
+        };
+      }
+      
+      nodesContainer.appendChild(el);
+    });
+  }
 
     // 1. Рисуем линии (SVG)
     let linesHTML = '';
