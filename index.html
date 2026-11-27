@@ -632,7 +632,6 @@ const state = {
     {id:'time_machine',name:'Машина времени',desc:'+500K/сек',base:1e15,type:'auto',value:550000,owned:0,max:9999},
     {id:'god_potato',name:'Божественная картошка',desc:'+5M/сек',base:1e18,type:'auto',value:10000000,owned:0,max:9999}
 ],
- 
   skills:[
     {id:'s_click',name:'Сильный клик',desc:'+10% к клику за ур.',max:5,cost:[2,3,5,8,12],lvl:0},
     {id:'s_auto',name:'Автоматика',desc:'+10% к авто за ур.',max:5,cost:[2,3,5,8,12],lvl:0},
@@ -733,7 +732,7 @@ function itemPrice(it) {
 const soulsAvail = () => state.souls - state.soulsSpent;
 function soulsGain() {
   const e = eqEffect(), ab = achBonuses(), cb = collectionBonuses();
-  
+
   let g = Math.floor(Math.pow(state.totalAllTime / 1e6, 0.4) * (1 + skLvl('s_soul')*.15));
   g *= (e.soulsMul || 1) * ab.soulsMul * cb.soulsMul;
   g *= (1 + state.prestigeCount * 0.05);
