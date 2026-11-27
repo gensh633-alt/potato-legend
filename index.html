@@ -539,20 +539,20 @@ const COLLECTION_BONUSES = [
   {need:15, soulsMul:1.25, label:'15 скинов: ×1.25 душ'},
   {need:20, autoMul:1.50, label:'20 скинов: ×1.50 авто'},
   {need:26, globalMul:2.00, label:'26 скинов: ×2 ко всему'}
-];
+],
 const CATEGORY_BONUSES = [
   {cat:'elemental', label:'Повелитель стихий (все elemental)', globalMul:1.10},
   {cat:'pixel',     label:'Ретро-геймер (все pixel)',         musicRetro:true},
   {cat:'planetary', label:'Космонавт (все planetary)',        starfield:true},
   {cat:'mythic',    label:'Миф (все mythic)',                 cores:1}
-];
+],
 
 const CASES = [
   {id:'starter',name:'Стартовый',cost:5,grad:['#60a5fa','#2563eb'],stroke:'#1e3a8a',lid:'#3b82f6',w:{common:50,uncommon:28,rare:15,epic:6,legendary:1,mythic:0},skins:['default','dark','earth','green','mint','px_8bit','el_ice','gold','sapphire','pl_mars','purple']},
   {id:'storm',name:'Клубневой шторм',cost:12,grad:['#4ade80','#15803d'],stroke:'#14532d',lid:'#22c55e',w:{common:22,uncommon:30,rare:26,epic:15,legendary:6,mythic:1},skins:['dark','earth','green','mint','px_8bit','px_gameboy','el_ice','el_fire','gold','sapphire','pl_mars','purple','toxic','ruby','el_storm','pl_saturn']},
   {id:'elements_space',name:'Космос и Стихии',cost:30,grad:['#38bdf8','#4338ca'],stroke:'#1e1b4b',lid:'#0ea5e9',w:{common:0,uncommon:15,rare:25,epic:30,legendary:22,mythic:8},skins:['px_gameboy','el_ice','el_fire','el_storm','el_magma','pl_mars','pl_saturn','pl_neptune','pl_galaxy','pl_solar','pl_blackhole','px_cyber']},
   {id:'abyss',name:'Бездна и Радуга',cost:45,grad:['#f472b6','#6d28d9'],stroke:'#4c1d95',lid:'#ec4899',w:{common:0,uncommon:10,rare:18,epic:30,legendary:26,mythic:16},skins:['el_fire','el_storm','el_magma','pl_saturn','pl_neptune','pl_galaxy','pl_solar','diamond','void','rainbow','px_cyber','pl_blackhole']}
-];
+],
 const caseById = id => CASES.find(c => c.id === id) || CASES[0];
 
 const BOSS_LORE = [
@@ -562,7 +562,7 @@ const BOSS_LORE = [
   {need:10, text:'В глубине чёрной дыры что-то шевельнулось. Оно тоже кликает. Оно уже кликает.'},
   {need:20, text:'Двадцатый босс пришёл с белым флагом. Он сказал: «Я просто хочу поиграть». Мы дали ему кликнуть один раз.'},
   {need:50, text:'Полсотни. Ты стал легендой среди пиратов и пришельцев. Они слагают о тебе песни. Плохие, но всё же.'}
-];
+],
 
 const DAILIES = [
   {id:'click500', name:'Кликни 500 раз', target:500, reward:{souls:2}, track:'clicksToday'},
@@ -576,7 +576,7 @@ const DAILIES = [
   {id:'click10000', name:'Кликни 10 000 раз', target:10000, reward:{souls:15}, track:'clicksToday'},
   {id:'earn1b', name:'Набей 1B картошек', target:1e9, reward:{souls:20}, track:'earnedToday'},
   {id:'buy50', name:'Купи 50 апгрейдов', target:50, reward:{souls:10}, track:'buysToday'}
-];
+],
 const STREAK_BONUS = {3:1.10, 7:1.25};
 
 const ACHIEVEMENTS = [
@@ -617,7 +617,7 @@ const ACHIEVEMENTS = [
   {id:'a_berserker',name:'Берсерк',         desc:'100 кликов по врагу за ивент',   check:s=>s.secrets.berserkerDone,    bonus:{eventMul:1.10}, lore:'Сто кликов по одному врагу. Врагу не повезло.'},
   {id:'a_click100k',name:'Клик-титан',      desc:'Кликни 100 000 раз', check:s=>s.totalClicks>=100000,          bonus:{clickMul:1.50}, lore:'Сто тысяч кликов. Твой палец пробил экран в соседнюю галактику.'},
   {id:'a_earn1t',   name:'Триллионер',      desc:'Набей 1T картошек', check:s=>s.totalAllTime>=1e12,            bonus:{globalMul:1.50}, lore:'Триллион. Картошка стала экономикой.'}
-];
+],
 
   items:[
     {id:'finger',name:'Палец',desc:'+1 за клик',base:150,type:'click',value:2,owned:0,max:999999},
@@ -631,14 +631,14 @@ const ACHIEVEMENTS = [
     {id:'multiverse',name:'Мультивселенная',desc:'+50K/сек',base:1e11,type:'auto',value:900000,owned:0,max:999999},
     {id:'time_machine',name:'Машина времени',desc:'+500K/сек',base:1e15,type:'auto',value:5500000,owned:0,max:999999},
     {id:'god_potato',name:'Божественная картошка',desc:'+5M/сек',base:1e18,type:'auto',value:100000000,owned:0,max:999999}
-  ];
+  ],
   skills:[
     {id:'s_click',name:'Сильный клик',desc:'+10% к клику за ур.',max:5,cost:[2,3,5,8,12],lvl:0},
     {id:'s_auto',name:'Автоматика',desc:'+10% к авто за ур.',max:5,cost:[2,3,5,8,12],lvl:0},
     {id:'s_start',name:'Стартовый капитал',desc:'+5000 картошек при сбросе',max:3,cost:[3,6,10],lvl:0},
     {id:'s_cheap',name:'Скидочка',desc:'-5% к цене апгрейдов',max:5,cost:[3,5,8,12,20],lvl:0},
     {id:'s_soul',name:'Опытная душа',desc:'+15% душ при сбросе',max:5,cost:[5,8,12,20,35],lvl:0}
-  ];
+  ],
   daily:{date:'',progress:0,done:false,claimed:false,defId:''},
   streak:0,bestStreak:0,lastClaimDate:'',dailiesDone:0,
   achievements:{},
