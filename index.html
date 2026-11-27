@@ -1222,8 +1222,7 @@ function renderLists(){
     d.onclick=()=>{ const c=itemPrice(it); if(state.count>=c && it.owned<it.max){ state.count-=c; it.owned++; state.buysToday++; beep(880,.08,'sine',.05); haptic(); renderAll(); renderLists(); renderQuests(); save(); } };
     $('#items').appendChild(d);
   });
-    // ===== НОВОЕ ДЕРЕВО НАВЫКОВ (ВАРИАНТ Б) =====
-    // ===== ОГРОМНОЕ ДЕРЕВО НАВЫКОВ =====
+      // ===== ОГРОМНОЕ ДЕРЕВО НАВЫКОВ =====
   const skillTree = $('#skillTree');
   if (skillTree) {
     const av = soulsAvail();
@@ -1345,103 +1344,6 @@ function renderLists(){
       nodesContainer.appendChild(el);
     });
   }
-
-    // 1. Рисуем линии (SVG)
-    let linesHTML = '';
-    Object.entries(NODES).forEach(([id, node]) => {
-      if (node.req) {
-        const reqNode = NODES[node.req];
-        const reqSkill = state.skills.find(s=>s.id===node.req);
-        const isUnlocked = reqSkill && reqSkill.lvl > 0;
-        // Используем viewBox 0 0 100 100, поэтому координаты в процентах
-        linesHTML += `<line x1="${reqNode.x}" y1="${reqNode.y}" x2="${node.x}" y2="${node.y}" stroke="${isUnlocked ? '#4ade80' : '#2a2a44'}" stroke-width="1.5" stroke-dasharray="${isUnlocked ? 'none' : '2'}" vector-effect="non-scaling-stroke" />`;
-      }
-    });
-    $('#skillLines').setAttribute('viewBox', '0 0 100 100');
-    $('#skillLines').setAttribute('preserveAspectRatio', 'none');
-    $('#skillLines').innerHTML = linesHTML;
-
-    // 2. Рисуем узлы
-    const nodesContainer = $('#skillNodes');
-    nodesContainer.innerHTML = '';
-    
-    state.skills.forEach(sk => {
-      const conf = NODES[sk.id];
-      if (!conf) return;
-      
-      const max = sk.lvl >= sk.max;
-      const reqSk = conf.req ? state.skills.find(s=>s.id===conf.req) : null;
-      const isLocked = reqSk && reqSk.lvl === 0;
-      const c = max ? 0 : sk.cost[sk.lvl];
-      const canBuy = !max && !isLocked && av >= c;
-      
-      const el = document.createElement('div');
-      el.style.position = 'absolute';
-      el.style.left = conf.x + '%';
-      el.style.top = conf.y + '%';
-      el.style.transform = 'translate(-50%, -50%)';
-      el.style.width = '56px';
-      el.style.height = '56px';
-      el.style.borderRadius = '50%';
-      el.style.display = 'flex';
-      el.style.flexDirection = 'column';
-      el.style.alignItems = 'center';
-      el.style.justifyContent = 'center';
-      el.style.cursor = canBuy ? 'pointer' : 'not-allowed';
-      el.style.transition = 'all 0.2s';
-      el.style.zIndex = 10;
-      
-      // Стили в зависимости от состояния
-      if (max) {
-        el.style.background = '#1a2a1a';
-        el.style.border = '2px solid #4ade80';
-        el.style.boxShadow = '0 0 15px rgba(74,222,128,0.4)';
-        el.style.color = '#4ade80';
-      } else if (isLocked) {
-        el.style.background = '#141423';
-        el.style.border = '2px solid #2a2a44';
-        el.style.color = '#5a5a7a';
-        el.style.opacity = '0.6';
-      } else if (canBuy) {
-        el.style.background = '#26263f';
-        el.style.border = '2px solid #ffd23f';
-        el.style.boxShadow = '0 0 15px rgba(255,210,63,0.3)';
-        el.style.color = '#ffd23f';
-      } else {
-        el.style.background = '#1d1d30';
-        el.style.border = '2px solid #2a2a44';
-        el.style.color = '#8a8aa3';
-      }
-
-      el.innerHTML = `
-        <div style="font-size:1.1rem; margin-bottom:2px">${conf.icon}</div>
-        <div style="font-size:0.6rem; font-weight:800; text-align:center; line-height:1">${sk.lvl}/${sk.max}</div>
-      `;
-      
-      // Подсказка при наведении (title)
-      el.title = `${sk.name}\n${sk.desc}\n${max ? 'MAX' : (isLocked ? 'Требуется: ' + reqSk.name : 'Цена: ' + c + ' душ')}`;
-      
-      // Логика покупки
-      if (canBuy) {
-        el.onclick = () => {
-          if (soulsAvail() >= c) {
-            state.soulsSpent += c;
-            sk.lvl++;
-            beep(1320,.14,'triangle',.06);
-            haptic();
-            checkAchievements();
-            renderAll();
-            renderLists();
-            save();
-          }
-        };
-      }
-      
-      nodesContainer.appendChild(el);
-    });
-  }
-
- 
 function renderSkins(){
   const grid=$('#skinGrid'); grid.innerHTML=''; $('#skinsCount').textContent=`${state.ownedSkins.length}/${SKINS.length}`;
   const cb = $('#collectionBar'); const n = ownedCount();
@@ -1538,6 +1440,7 @@ function renderLore(){
     body.innerHTML = html;
   }
 }
+ 
 function renderCases(){
   const c=caseById(state.selectedCase), sel=$('#caseSelector'); sel.innerHTML='';
   CASES.forEach(item=>{
