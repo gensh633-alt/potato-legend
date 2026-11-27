@@ -232,6 +232,7 @@
   <button class="btn" style="background:#fbbf24;color:#1a1a2e" data-panel="questsPanel">Задания</button>
   <button class="btn" style="background:#60a5fa;color:#fff" data-panel="achPanel">Достижения</button>
   <button class="btn music" id="toggleMusic">Музыка: ВКЛ</button>
+  <button class="btn" style="background:#a78bfa;color:#fff" id="toggleLeaderboard">Лидеры</button>
 </div>
 
 <div class="panel" id="shop"><button class="panelClose" data-close="shop">✕</button><h2>Апгрейды</h2><div id="items"></div></div>
@@ -286,6 +287,12 @@
   <div id="achBody"></div>
 </div>
 
+<div class="panel" id="leaderboardPanel">
+  <button class="panelClose" data-close="leaderboardPanel">✕</button>
+  <h2>🏆 Топ игроков</h2>
+  <div id="leaderboardBody" style="margin-top:16px; font-size:.9rem;"></div>
+</div>
+ 
 <div class="overlay" id="previewOverlay">
   <div id="previewStage"><canvas id="previewAuraCanvas"></canvas><div id="previewPotatoBox"></div></div>
   <div id="previewName"></div><div id="previewRarity"></div><div id="previewBonusLabel"></div><div id="previewAuraLabel"></div>
