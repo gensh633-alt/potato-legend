@@ -401,7 +401,40 @@ const Storage = {
 /* ================= ХЕЛПЕРЫ ================= */
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
-const fmt = n => n>=1e12?(n/1e12).toFixed(2)+'T':n>=1e9?(n/1e9).toFixed(2)+'B':n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':Math.floor(n)+'';
+const fmt = n => {
+  if (n === Infinity) return 'MAX';
+  if (isNaN(n)) return '0';
+  
+  const suffixes = [
+    '', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc', 
+    'UDc', 'DDc', 'TDc', 'QaDc', 'QiDc', 'SxDc', 'SpDc', 'OcDc', 'NoDc', 'Vg', 
+    'UVg', 'DVg', 'TVg', 'QaVg', 'QiVg', 'SxVg', 'SpVg', 'OcVg', 'NoVg', 'Tg', 
+    'UTg', 'DTg', 'TTg', 'QaTg', 'QiTg', 'SxTg', 'SpTg', 'OcTg', 'NoTg', 'Qd', 
+    'UQd', 'DQd', 'TQd', 'QaQd', 'QiQd', 'SxQd', 'SpQd', 'OcQd', 'NoQd', 'Qn', 
+    'UQn', 'DQn', 'TQn', 'QaQn', 'QiQn', 'SxQn', 'SpQn', 'OcQn', 'NoQn', 'Sx', 
+    'USx', 'DSx', 'TSx', 'QaSx', 'QiSx', 'SxSx', 'SpSx', 'OcSx', 'NoSx', 'Sp', 
+    'USp', 'DSp', 'TSp', 'QaSp', 'QiSp', 'SxSp', 'SpSp', 'OcSp', 'NoSp', 'Oc', 
+    'UOc', 'DOc', 'TOc', 'QaOc', 'QiOc', 'SxOc', 'SpOc', 'OcOc', 'NoOc', 'No', 
+    'UNo', 'DNo', 'TNo', 'QaNo', 'QiNo', 'SxNo', 'SpNo', 'OcNo', 'NoNo', 'Dc',
+    'UDc', 'DDc', 'TDc', 'QaDc', 'QiDc', 'SxDc', 'SpDc', 'OcDc', 'NoDc', 'DcDc'
+  ];
+  
+  let tier = 0;
+  let tempN = n;
+  while (tempN >= 1000 && tier < suffixes.length - 1) {
+    tempN /= 1000;
+    tier++;
+  }
+  
+  // Если числа огромные (выше ZZZ), просто пишем e+...
+  if (tier >= suffixes.length) return n.toExponential(2).replace('+', '');
+  
+  // Если число целое, не показываем копейки
+  let result = tempN;
+  if (result % 1 !== 0) result = result.toFixed(2);
+  
+  return result + suffixes[tier];
+};
 const fmtShort = n => n>=1e9?(n/1e9).toFixed(2)+'B':n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e3?(n/1e3).toFixed(2)+'K':n.toFixed(1);
 const ICONS = {
   soul:'<svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><path d="M12 2 C12 2 8 7 8 11 a4 4 0 0 0 8 0 C16 7 12 2 12 2Z"/><path d="M12 15 v7"/></svg>',
@@ -654,7 +687,13 @@ function collectionBonuses() {
 }
 function coreBonuses() {
   const c = state.cores;
-  return {clickMul: Math.pow(1.5,c), autoMul: Math.pow(1.5,c), priceMul: Math.pow(0.9,c)};
+  // Даем фиксированный бонус за ядра, но с убывающей полезностью
+  // Каждое ядро дает +15% к доходу (вместо 50%)
+  return {
+    clickMul: 1 + (c * 0.15),
+    autoMul: 1 + (c * 0.15),
+    priceMul: Math.pow(0.95, Math.min(c, 50)) // Скидка максимум 50 ядер (остальные не влияют)
+  };
 }
 
 const tierMul = owned => Math.pow(1.5, Math.floor(owned/10));
@@ -690,12 +729,16 @@ function itemPrice(it) {
 const soulsAvail = () => state.souls - state.soulsSpent;
 function soulsGain() {
   const e = eqEffect(), ab = achBonuses(), cb = collectionBonuses();
-  let g = Math.floor(Math.sqrt(state.totalAllTime / 1e6) * (1 + skLvl('s_soul')*.15));
+  
+  let g = Math.floor(Math.pow(state.totalAllTime / 1e6, 0.4) * (1 + skLvl('s_soul')*.15));
   g *= (e.soulsMul || 1) * ab.soulsMul * cb.soulsMul;
   g *= (1 + state.prestigeCount * 0.05);
   return Math.floor(g);
 }
-function coresGain() { return Math.floor(Math.sqrt(Math.max(0,state.totalSoulsEarned) / 100)); }
+
+function coresGain() { 
+  return Math.floor(Math.sqrt(Math.max(0, state.totalSoulsEarned) / 1000)); 
+}
 
 function makeAura(canvas){
   const ctx = canvas.getContext('2d');
