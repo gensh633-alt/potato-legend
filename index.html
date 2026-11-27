@@ -243,7 +243,18 @@
 </div>
 
 <div class="panel" id="shop"><button class="panelClose" data-close="shop">✕</button><h2>Апгрейды</h2><div id="items"></div></div>
-<div class="panel" id="treePanel"><button class="panelClose" data-close="treePanel">✕</button><h2>Дерево навыков</h2><div id="skills"></div></div>
+<div class="panel" id="treePanel">
+  <button class="panelClose" data-close="treePanel">✕</button>
+  <h2>Дерево навыков</h2>
+  <div style="font-size:.85rem;color:#8a8aa3;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+    <span>Свободно душ: <span id="skillSoulsAvail" style="color:#a78bfa;font-weight:800">0</span></span>
+    <span style="font-size:.7rem;color:#5a5a7a">Наведи на узел</span>
+  </div>
+  <div id="skillTree" style="position:relative;width:100%;height:380px;background:rgba(15,15,26,.6);border-radius:12px;border:1px solid #2a2a44;overflow:hidden;background-image:radial-gradient(circle, #1d1d30 1px, transparent 1px);background-size:24px 24px;">
+    <svg id="skillLines" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1"></svg>
+    <div id="skillNodes" style="position:absolute;inset:0;z-index:2"></div>
+  </div>
+</div>
 <div class="panel" id="skinsPanel">
   <button class="panelClose" data-close="skinsPanel">✕</button>
   <h2>Скины (<span id="skinsCount">0/0</span>)</h2>
@@ -1177,14 +1188,115 @@ function renderLists(){
     d.onclick=()=>{ const c=itemPrice(it); if(state.count>=c && it.owned<it.max){ state.count-=c; it.owned++; state.buysToday++; beep(880,.08,'sine',.05); haptic(); renderAll(); renderLists(); renderQuests(); save(); } };
     $('#items').appendChild(d);
   });
-  $('#skills').innerHTML = ''; const av=soulsAvail();
-  state.skills.forEach(sk=>{
-    const max=sk.lvl>=sk.max, c=max?0:sk.cost[sk.lvl], ok=!max&&av>=c, d=document.createElement('div');
-    d.className='cardRow'+(max?' maxed':(ok?'':' locked'));
-    d.innerHTML=`<div class="icon">${ICONS.soul}</div><div class="body"><div class="name"><span>${sk.name}</span><span class="subVal">${sk.lvl}/${sk.max}</span></div><div class="desc">${sk.desc}</div><div class="price">${max?'MAX':ICONS.soul+c}</div></div>`;
-    if(ok) d.onclick=()=>{ if(soulsAvail()>=c){ state.soulsSpent+=c; sk.lvl++; beep(1320,.14,'triangle',.06); haptic(); checkAchievements(); renderAll(); renderLists(); save(); } };
-    $('#skills').appendChild(d);
-  });
+    // ===== НОВОЕ ДЕРЕВО НАВЫКОВ (ВАРИАНТ Б) =====
+  const skillTree = $('#skillTree');
+  if (skillTree) {
+    const av = soulsAvail();
+    $('#skillSoulsAvail').textContent = av;
+    
+    // Координаты узлов в процентах (x, y) и зависимости (req)
+    const NODES = {
+      's_click': { x: 25, y: 80, req: null, icon: '⚔️' },
+      's_cheap': { x: 15, y: 45, req: 's_click', icon: '💰' },
+      's_auto':  { x: 75, y: 80, req: null, icon: '🤖' },
+      's_start': { x: 85, y: 45, req: 's_auto', icon: '🚀' },
+      's_soul':  { x: 50, y: 20, req: null, icon: '✨' }
+    };
+
+    // 1. Рисуем линии (SVG)
+    let linesHTML = '';
+    Object.entries(NODES).forEach(([id, node]) => {
+      if (node.req) {
+        const reqNode = NODES[node.req];
+        const reqSkill = state.skills.find(s=>s.id===node.req);
+        const isUnlocked = reqSkill && reqSkill.lvl > 0;
+        // Используем viewBox 0 0 100 100, поэтому координаты в процентах
+        linesHTML += `<line x1="${reqNode.x}" y1="${reqNode.y}" x2="${node.x}" y2="${node.y}" stroke="${isUnlocked ? '#4ade80' : '#2a2a44'}" stroke-width="1.5" stroke-dasharray="${isUnlocked ? 'none' : '2'}" vector-effect="non-scaling-stroke" />`;
+      }
+    });
+    $('#skillLines').setAttribute('viewBox', '0 0 100 100');
+    $('#skillLines').setAttribute('preserveAspectRatio', 'none');
+    $('#skillLines').innerHTML = linesHTML;
+
+    // 2. Рисуем узлы
+    const nodesContainer = $('#skillNodes');
+    nodesContainer.innerHTML = '';
+    
+    state.skills.forEach(sk => {
+      const conf = NODES[sk.id];
+      if (!conf) return;
+      
+      const max = sk.lvl >= sk.max;
+      const reqSk = conf.req ? state.skills.find(s=>s.id===conf.req) : null;
+      const isLocked = reqSk && reqSk.lvl === 0;
+      const c = max ? 0 : sk.cost[sk.lvl];
+      const canBuy = !max && !isLocked && av >= c;
+      
+      const el = document.createElement('div');
+      el.style.position = 'absolute';
+      el.style.left = conf.x + '%';
+      el.style.top = conf.y + '%';
+      el.style.transform = 'translate(-50%, -50%)';
+      el.style.width = '56px';
+      el.style.height = '56px';
+      el.style.borderRadius = '50%';
+      el.style.display = 'flex';
+      el.style.flexDirection = 'column';
+      el.style.alignItems = 'center';
+      el.style.justifyContent = 'center';
+      el.style.cursor = canBuy ? 'pointer' : 'not-allowed';
+      el.style.transition = 'all 0.2s';
+      el.style.zIndex = 10;
+      
+      // Стили в зависимости от состояния
+      if (max) {
+        el.style.background = '#1a2a1a';
+        el.style.border = '2px solid #4ade80';
+        el.style.boxShadow = '0 0 15px rgba(74,222,128,0.4)';
+        el.style.color = '#4ade80';
+      } else if (isLocked) {
+        el.style.background = '#141423';
+        el.style.border = '2px solid #2a2a44';
+        el.style.color = '#5a5a7a';
+        el.style.opacity = '0.6';
+      } else if (canBuy) {
+        el.style.background = '#26263f';
+        el.style.border = '2px solid #ffd23f';
+        el.style.boxShadow = '0 0 15px rgba(255,210,63,0.3)';
+        el.style.color = '#ffd23f';
+      } else {
+        el.style.background = '#1d1d30';
+        el.style.border = '2px solid #2a2a44';
+        el.style.color = '#8a8aa3';
+      }
+
+      el.innerHTML = `
+        <div style="font-size:1.1rem; margin-bottom:2px">${conf.icon}</div>
+        <div style="font-size:0.6rem; font-weight:800; text-align:center; line-height:1">${sk.lvl}/${sk.max}</div>
+      `;
+      
+      // Подсказка при наведении (title)
+      el.title = `${sk.name}\n${sk.desc}\n${max ? 'MAX' : (isLocked ? 'Требуется: ' + reqSk.name : 'Цена: ' + c + ' душ')}`;
+      
+      // Логика покупки
+      if (canBuy) {
+        el.onclick = () => {
+          if (soulsAvail() >= c) {
+            state.soulsSpent += c;
+            sk.lvl++;
+            beep(1320,.14,'triangle',.06);
+            haptic();
+            checkAchievements();
+            renderAll();
+            renderLists();
+            save();
+          }
+        };
+      }
+      
+      nodesContainer.appendChild(el);
+    });
+  }
 }
 function renderSkins(){
   const grid=$('#skinGrid'); grid.innerHTML=''; $('#skinsCount').textContent=`${state.ownedSkins.length}/${SKINS.length}`;
