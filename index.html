@@ -575,7 +575,7 @@ const DAILIES = [
   {id:'prestige1', name:'Сделай 1 престиж', target:1, reward:{souls:8}, track:'prestigesToday'},
   {id:'click10000', name:'Кликни 10 000 раз', target:10000, reward:{souls:15}, track:'clicksToday'},
   {id:'earn1b', name:'Набей 1B картошек', target:1e9, reward:{souls:20}, track:'earnedToday'},
-  {id:'buy50', name:'Купи 50 апгрейдов', target:50, reward:{souls:10}, track:'buysToday'}.
+  {id:'buy50', name:'Купи 50 апгрейдов', target:50, reward:{souls:10}, track:'buysToday'}
 ];
 const STREAK_BONUS = {3:1.10, 7:1.25};
 
@@ -616,7 +616,7 @@ const ACHIEVEMENTS = [
   {id:'a_nightOwl', name:'Полуночник',      desc:'Кликни 100 раз с 0:00 до 5:00',  check:s=>s.secrets.nightClicks>=100, bonus:{clickMul:1.05}, lore:'Ты не спишь. Картошка не спит. Вы бодрствуете вместе.'},
   {id:'a_berserker',name:'Берсерк',         desc:'100 кликов по врагу за ивент',   check:s=>s.secrets.berserkerDone,    bonus:{eventMul:1.10}, lore:'Сто кликов по одному врагу. Врагу не повезло.'},
   {id:'a_click100k',name:'Клик-титан',      desc:'Кликни 100 000 раз', check:s=>s.totalClicks>=100000,          bonus:{clickMul:1.50}, lore:'Сто тысяч кликов. Твой палец пробил экран в соседнюю галактику.'},
-  {id:'a_earn1t',   name:'Триллионер',      desc:'Набей 1T картошек', check:s=>s.totalAllTime>=1e12,            bonus:{globalMul:1.50}, lore:'Триллион. Картошка стала экономикой.'}.
+  {id:'a_earn1t',   name:'Триллионер',      desc:'Набей 1T картошек', check:s=>s.totalAllTime>=1e12,            bonus:{globalMul:1.50}, lore:'Триллион. Картошка стала экономикой.'}
 ];
 
   items:[
@@ -628,7 +628,6 @@ const ACHIEVEMENTS = [
     {id:'ai',name:'ИИ-картошка',desc:'+100/сек',base:250000,type:'auto',value:2500,owned:0,max:999999},
     {id:'quantum',name:'Квантовая грядка',desc:'+500/сек',base:2000000,type:'auto',value:10000,owned:0,max:999999},
     {id:'dyson',name:'Сфера Дайсона',desc:'+5000/сек',base:50000000,type:'auto',value:90000,owned:0,max:999999},
-    // НОВЫЕ АПГРЕЙДЫ ДЛЯ БОЛЬШИХ ЧИСЕЛ
     {id:'multiverse',name:'Мультивселенная',desc:'+50K/сек',base:1e11,type:'auto',value:900000,owned:0,max:999999},
     {id:'time_machine',name:'Машина времени',desc:'+500K/сек',base:1e15,type:'auto',value:5500000,owned:0,max:999999},
     {id:'god_potato',name:'Божественная картошка',desc:'+5M/сек',base:1e18,type:'auto',value:100000000,owned:0,max:999999}
