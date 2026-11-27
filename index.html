@@ -617,7 +617,7 @@ const ACHIEVEMENTS = [
   {id:'a_berserker',name:'Берсерк',         desc:'100 кликов по врагу за ивент',   check:s=>s.secrets.berserkerDone,    bonus:{eventMul:1.10}, lore:'Сто кликов по одному врагу. Врагу не повезло.'},
   {id:'a_click100k',name:'Клик-титан',      desc:'Кликни 100 000 раз', check:s=>s.totalClicks>=100000,          bonus:{clickMul:1.50}, lore:'Сто тысяч кликов. Твой палец пробил экран в соседнюю галактику.'},
   {id:'a_earn1t',   name:'Триллионер',      desc:'Набей 1T картошек', check:s=>s.totalAllTime>=1e12,            bonus:{globalMul:1.50}, lore:'Триллион. Картошка стала экономикой.'}
-],
+];
 
   items:[
     {id:'finger',name:'Палец',desc:'+1 за клик',base:150,type:'click',value:2,owned:0,max:999999},
