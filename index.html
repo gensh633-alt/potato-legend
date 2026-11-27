@@ -618,27 +618,28 @@ const ACHIEVEMENTS = [
   {id:'a_click100k',name:'Клик-титан',      desc:'Кликни 100 000 раз', check:s=>s.totalClicks>=100000,          bonus:{clickMul:1.50}, lore:'Сто тысяч кликов. Твой палец пробил экран в соседнюю галактику.'},
   {id:'a_earn1t',   name:'Триллионер',      desc:'Набей 1T картошек', check:s=>s.totalAllTime>=1e12,            bonus:{globalMul:1.50}, lore:'Триллион. Картошка стала экономикой.'}
 ];
-
+const state = {
   items:[
-    {id:'finger',name:'Палец',desc:'+1 за клик',base:150,type:'click',value:2,owned:0,max:999999},
-    {id:'hand',name:'Рука',desc:'+5 за клик',base:1200,type:'click',value:7,owned:0,max:999999},
-    {id:'mouse',name:'Мышь-автоклик',desc:'+1/сек',base:500,type:'auto',value:1,owned:0,max:999999},
-    {id:'farm',name:'Картофелефарм',desc:'+5/сек',base:3500,type:'auto',value:30,owned:0,max:999999},
-    {id:'factory',name:'Завод',desc:'+25/сек',base:25000,type:'auto',value:700,owned:0,max:999999},
-    {id:'ai',name:'ИИ-картошка',desc:'+100/сек',base:250000,type:'auto',value:2500,owned:0,max:999999},
-    {id:'quantum',name:'Квантовая грядка',desc:'+500/сек',base:2000000,type:'auto',value:10000,owned:0,max:999999},
-    {id:'dyson',name:'Сфера Дайсона',desc:'+5000/сек',base:50000000,type:'auto',value:90000,owned:0,max:999999},
-    {id:'multiverse',name:'Мультивселенная',desc:'+50K/сек',base:1e11,type:'auto',value:900000,owned:0,max:999999},
-    {id:'time_machine',name:'Машина времени',desc:'+500K/сек',base:1e15,type:'auto',value:5500000,owned:0,max:999999},
-    {id:'god_potato',name:'Божественная картошка',desc:'+5M/сек',base:1e18,type:'auto',value:100000000,owned:0,max:999999}
-  ],
+    {id:'finger',name:'Палец',desc:'+1 за клик',base:150,type:'click',value:2,owned:0,max:9999},
+    {id:'hand',name:'Рука',desc:'+5 за клик',base:1200,type:'click',value:7,owned:0,max:9999},
+    {id:'mouse',name:'Мышь-автоклик',desc:'+1/сек',base:500,type:'auto',value:1,owned:0,max:9999},
+    {id:'farm',name:'Картофелефарм',desc:'+5/сек',base:3500,type:'auto',value:30,owned:0,max:9999},
+    {id:'factory',name:'Завод',desc:'+25/сек',base:25000,type:'auto',value:70,owned:0,max:9999},
+    {id:'ai',name:'ИИ-картошка',desc:'+100/сек',base:250000,type:'auto',value:250,owned:0,max:9999},
+    {id:'quantum',name:'Квантовая грядка',desc:'+500/сек',base:2000000,type:'auto',value:1000,owned:0,max:9999},
+    {id:'dyson',name:'Сфера Дайсона',desc:'+5000/сек',base:50000000,type:'auto',value:9000,owned:0,max:9999},
+    {id:'multiverse',name:'Мультивселенная',desc:'+50K/сек',base:1e11,type:'auto',value:90000,owned:0,max:9999},
+    {id:'time_machine',name:'Машина времени',desc:'+500K/сек',base:1e15,type:'auto',value:550000,owned:0,max:9999},
+    {id:'god_potato',name:'Божественная картошка',desc:'+5M/сек',base:1e18,type:'auto',value:10000000,owned:0,max:9999}
+],
+ 
   skills:[
     {id:'s_click',name:'Сильный клик',desc:'+10% к клику за ур.',max:5,cost:[2,3,5,8,12],lvl:0},
     {id:'s_auto',name:'Автоматика',desc:'+10% к авто за ур.',max:5,cost:[2,3,5,8,12],lvl:0},
     {id:'s_start',name:'Стартовый капитал',desc:'+5000 картошек при сбросе',max:3,cost:[3,6,10],lvl:0},
     {id:'s_cheap',name:'Скидочка',desc:'-5% к цене апгрейдов',max:5,cost:[3,5,8,12,20],lvl:0},
     {id:'s_soul',name:'Опытная душа',desc:'+15% душ при сбросе',max:5,cost:[5,8,12,20,35],lvl:0}
-  ],
+],
   daily:{date:'',progress:0,done:false,claimed:false,defId:''},
   streak:0,bestStreak:0,lastClaimDate:'',dailiesDone:0,
   achievements:{},
