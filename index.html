@@ -1630,6 +1630,7 @@ function doPrestigeToSouls() {
   checkAchievements(); renderAll(); renderLists(); renderQuests(); save();
   banner(`Перерождение! +${g} душ`); hapticNotify('success');
 }
+ 
 function doPrestigeToCores() {
   if (state.totalSoulsEarned < 100) return;
   const cg = coresGain(); if (cg < 1) return;
