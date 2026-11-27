@@ -1844,6 +1844,71 @@ function showOfflineModal(gain, sec) {
     checkAchievements(); renderAll(); renderLists(); renderQuests(); save();
   };
 }
+ // ================= ЛИДЕРБОРД =================
+const LEADERBOARD_API = 'https://potato-leaderboard.potato-legendtap.workers.dev';
+
+document.getElementById('toggleLeaderboard').onclick = () => {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('open'));
+  document.getElementById('leaderboardPanel').classList.add('open');
+  loadLeaderboard();
+};
+
+async function loadLeaderboard() {
+  const body = document.getElementById('leaderboardBody');
+  if (!body) return;
+  body.innerHTML = '<div style="text-align:center;color:#8a8aa3">Загрузка...</div>';
+  
+  try {
+    const res = await fetch(`${LEADERBOARD_API}/api/leaderboard`);
+    const data = await res.json();
+    
+    if (!data.top || data.top.length === 0) {
+      body.innerHTML = '<div style="text-align:center;color:#8a8aa3">Пока никто не играл. Будь первым!</div>';
+      return;
+    }
+    
+    let html = '';
+    data.top.forEach((player, i) => {
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+      html += `
+        <div style="display:flex; justify-content:space-between; padding:10px; 
+                    background:${i < 3 ? '#26263f' : '#1d1d30'}; 
+                    border-radius:8px; margin-bottom:6px; border:1px solid #2a2a44">
+          <span style="font-weight:700">${medal} ${player.name}</span>
+          <span style="color:#ffd23f; font-weight:800">${fmt(player.score)}</span>
+        </div>
+      `;
+    });
+    body.innerHTML = html;
+  } catch (e) {
+    body.innerHTML = '<div style="text-align:center;color:#f87171">Ошибка загрузки. Попробуй позже.</div>';
+  }
+}
+
+async function submitScore() {
+  if (!window.Telegram?.WebApp?.initData) return;
+  
+  try {
+    await fetch(`${LEADERBOARD_API}/api/score`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `tma ${window.Telegram.WebApp.initData}`
+      },
+      body: JSON.stringify({ score: state.totalAllTime })
+    });
+  } catch (e) {
+    console.error('Score submit failed:', e);
+  }
+}
+
+// Отправляем счёт при закрытии игры
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) submitScore();
+});
+
+// И раз в 30 секунд
+setInterval(submitScore, 30000);
 </script>
 </body>
 </html>
