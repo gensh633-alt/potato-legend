@@ -1344,6 +1344,7 @@ function renderLists(){
       nodesContainer.appendChild(el);
     });
   }
+}
 function renderSkins(){
   const grid=$('#skinGrid'); grid.innerHTML=''; $('#skinsCount').textContent=`${state.ownedSkins.length}/${SKINS.length}`;
   const cb = $('#collectionBar'); const n = ownedCount();
