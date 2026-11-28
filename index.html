@@ -773,14 +773,18 @@ function itemPrice(it) {
 const soulsAvail = () => state.souls - state.soulsSpent;
 function soulsGain() {
   const e = eqEffect(), ab = achBonuses(), cb = collectionBonuses();
-  let g = Math.floor(Math.pow(state.totalAllTime / 1e6, 0.4) * (1 + skLvl('s_soul')*.15));
-  // Учет s_soul2
+  
+  // Новая формула: 10 000 картошек = 1 душа (было 1 000 000)
+  let g = Math.floor(Math.pow(state.totalAllTime / 1e5, 0.4) * (1 + skLvl('s_soul')*.15));
+  
+  // Учет навыка "Резонанс душ" (s_soul2)
   if (state.skills.find(s=>s.id==='s_soul2')) {
     const s2 = state.skills.find(s=>s.id==='s_soul2');
     g *= (1 + s2.lvl * 0.15);
   }
+  
   g *= (e.soulsMul || 1) * ab.soulsMul * cb.soulsMul;
-  g *= (1 + state.prestigeCount * 0.05);
+  g *= (1 + state.prestigeCount * 0.05); // Бонус за каждое перерождение (+5%)
   return Math.floor(g);
 }
 
@@ -2411,6 +2415,31 @@ function spawnSkinEffect(e) {
     container.remove();
   }, 1000);
 }
+ // ==========================================
+// ПРИВЯЗКА КНОПОК ПЕРЕРОЖДЕНИЯ (ПРЕСТИЖА)
+// ==========================================
+// Ждем, пока страница полностью загрузится (на всякий случай)
+window.addEventListener('load', () => {
+  const btnSouls = document.getElementById('doPrestige');
+  const btnCores = document.getElementById('doPrestige2');
+  
+  if (btnSouls) {
+    // Убираем старые обработчики, чтобы не было дублей
+    btnSouls.onclick = null;
+    // Привязываем функцию сброса в души
+    btnSouls.onclick = () => {
+      doPrestigeToSouls();
+    };
+  }
+  
+  if (btnCores) {
+    btnCores.onclick = null;
+    // Привязываем функцию сброса в ядра
+    btnCores.onclick = () => {
+      doPrestigeToCores();
+    };
+  }
+});
 </script>
 </body>
 </html>
