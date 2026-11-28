@@ -1268,19 +1268,44 @@ function renderLists(){
   document.getElementById('modalCloseBtn').onclick = () => modal.remove();
   modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 
-  const buyBtn = document.getElementById('modalBuyBtn');
+    const buyBtn = document.getElementById('modalBuyBtn');
   if (buyBtn) {
-    buyBtn.onclick = () => {
+    buyBtn.onclick = (e) => {
+      e.stopPropagation();
       if (soulsAvail() >= c) {
         state.soulsSpent += c;
         sk.lvl++;
         beep(1320,.14,'triangle',.06);
         haptic();
-        modal.remove();
         checkAchievements();
         renderAll();
-        renderLists(); // Перерисовываем дерево
-        save();
+        renderLists(); // Перерисовываем дерево на фоне
+        
+        // ВМЕСТО modal.remove() ОБНОВЛЯЕМ ОКНО:
+        // Находим актуальную цену и состояние
+        const newMax = sk.lvl >= sk.max;
+        const newC = newMax ? 0 : sk.cost[sk.lvl];
+        const newCanBuy = !newMax && soulsAvail() >= newC;
+        
+        // Обновляем текст внутри окна
+        const modalContent = modal.querySelector('div');
+        const lvlText = modalContent.querySelector('div[style*="color: #4ade80"]');
+        if (lvlText) lvlText.textContent = `Уровень: ${sk.lvl} / ${sk.max}`;
+        
+        // Обновляем кнопку
+        if (newMax) {
+          buyBtn.textContent = 'МАКС. УРОВЕНЬ';
+          buyBtn.disabled = true;
+          buyBtn.className = 'btn';
+        } else if (newCanBuy) {
+          buyBtn.textContent = `Купить за ${newC} душ`;
+          buyBtn.disabled = false;
+          buyBtn.className = 'btn skin';
+        } else {
+          buyBtn.textContent = `Не хватает душ (нужно ${newC})`;
+          buyBtn.disabled = true;
+          buyBtn.className = 'btn';
+        }
       }
     };
   }
